@@ -9,11 +9,11 @@ terraform {
 
 provider "config" {}
 
-data "config_workbook_parser" "this" {
+data "config_workbook" "this" {
   csv = file("files/test.csv")
   schema = file("files/config.yaml")
 }
 
 output "data" {
-  value = jsondecode(data.config_workbook_parser.this.json)
+  value = jsondecode(data.config_workbook.this.json)
 }

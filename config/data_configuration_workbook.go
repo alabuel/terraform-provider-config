@@ -49,24 +49,32 @@ func dataSourceConfigurationItemRead(ctx context.Context, d *schema.ResourceData
 	schema := d.Get("schema").(string)
 	configuration_item := d.Get("configuration_item").(string)
 
-	// convert the schema to map
-	map_yaml, err := stringToInterface(schema)
-	if err != nil {
-		return diag.FromErr(err)
-	}
-	maps := map_yaml.(map[interface{}]interface{})
-
 	// convert the csv to map
 	csv, err := stringToMap(csv_string)
 	if err != nil {
 		return diag.FromErr(err)
 	}
 
-	// remap all csv headers based on mapping configuration
-	records := reMapData(csv, maps["configuration_workbook_mapping"])
-
 	// get all unique configuration items
-	items := unique(getConfigurationItems(records))
+	items := unique(getConfigurationItems(csv))
+
+	// convert the schema to map
+	var map_yaml interface{}
+	if schema != "" {
+		map_yaml, err = stringToInterface(schema)
+		if err != nil {
+			return diag.FromErr(err)
+		}
+	} else {
+		map_yaml, err = createDefaultMapping(items, csv)
+		if err != nil {
+			return diag.FromErr(err)
+		}
+	}
+	mapping := map_yaml.(map[interface{}]interface{})
+
+	// remap all csv headers based on mapping configuration
+	records := reMapData(csv, mapping["configuration_workbook_mapping"])
 
 	// get the transformed data
 	data := getItemData(records, items, configuration_item)
@@ -81,12 +89,12 @@ func dataSourceConfigurationItemRead(ctx context.Context, d *schema.ResourceData
 	return diags
 }
 
-func getConfigurationItems(csv []map[string]interface{}) []string {
+func getConfigurationItems(csv []map[string]string) []string {
 	var items []string
 	for _, value := range csv {
 		for k, v := range value {
 			if k == "configuration_item" {
-				items = append(items, v.(string))
+				items = append(items, v)
 			}
 		}
 	}
@@ -177,31 +185,36 @@ func reMapData(csv []map[string]string, mapping interface{}) []map[string]interf
 				}
 			} else if k == "configuration_item" {
 				new_value[k] = value[k]
-			} else if strings.HasPrefix(k, "t_") {
+			} else if strings.HasPrefix(k, "t_") || strings.HasPrefix(k, "tag_") {
 				if value[k] != "" {
-					new_key := strings.Title(strings.Replace(k, "t_", "", -1))
+					replacer := strings.NewReplacer("t_", "", "tag_", "")
+					new_key := strings.Title(replacer.Replace(k))
 					new_tag[new_key] = value[k]
 				}
-			} else if strings.HasPrefix(k, "n_") {
+			} else if strings.HasPrefix(k, "n_") || strings.HasPrefix(k, "num_") || strings.HasPrefix(k, "number_") || strings.HasPrefix(k, "numeric_") {
 				if value[k] != "" {
-					new_key := strings.Replace(k, "n_", "", -1)
+					replacer := strings.NewReplacer("n_", "", "num_", "", "number_", "", "numeric_", "")
+					new_key := replacer.Replace(k)
 					n, _ := strconv.ParseFloat(value[k], 64)
 					new_value[new_key] = n
 				}
-			} else if strings.HasPrefix(k, "b_") {
+			} else if strings.HasPrefix(k, "b_") || strings.HasPrefix(k, "bool_") || strings.HasPrefix(k, "boolean_") {
 				if value[k] != "" {
-					new_key := strings.Replace(k, "b_", "", -1)
+					replacer := strings.NewReplacer("b_", "", "bool_", "", "boolean_", "")
+					new_key := replacer.Replace(k)
 					val, _ := strconv.ParseBool(value[k])
 					new_value[new_key] = val
 				}
-			} else if strings.HasPrefix(k, "l_") {
+			} else if strings.HasPrefix(k, "l_") || strings.HasPrefix(k, "list_") {
 				if value[k] != "" {
-					new_key := strings.Replace(k, "l_", "", -1)
+					replacer := strings.NewReplacer("l_", "", "list_", "")
+					new_key := replacer.Replace(k)
 					new_value[new_key] = strings.Split(value[k], ",")
 				}
-			} else if strings.HasPrefix(k, "m_") {
+			} else if strings.HasPrefix(k, "m_") || strings.HasPrefix(k, "map_") {
 				if value[k] != "" {
-					new_key := strings.Replace(k, "m_", "", -1)
+					replacer := strings.NewReplacer("m_", "", "map_", "")
+					new_key := replacer.Replace(k)
 					vlist := strings.Split(value[k], ",")
 					vmap := make(map[string]string)
 					for _, vl := range vlist {
@@ -304,6 +317,24 @@ func getMapValue(config interface{}, config_item string, config_key string) (str
 // 	}
 // 	return v, nil
 // }
+
+func createDefaultMapping(items []string, csv []map[string]string) (map[interface{}]interface{}, error) {
+	mapping := make(map[interface{}]interface{})
+
+	item_map := make(map[interface{}]interface{})
+	for _, s := range items {
+		item := make(map[interface{}]interface{})
+		for k := range csv[0] {
+			if k != "configuration_item" {
+				item[k] = k
+			}
+		}
+		item_map[s] = item
+	}
+	mapping["configuration_workbook_mapping"] = item_map
+
+	return mapping, nil
+}
 
 func stringToInterface(s string) (interface{}, error) {
 	var v interface{}
