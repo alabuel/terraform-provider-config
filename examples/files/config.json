@@ -1,0 +1,29 @@
+{
+    "configuration_workbook_mapping": {
+        "config_item_1": {
+            "attr1": {
+                "name": "name",
+                "type": "string"
+            },
+            "attr2": {
+                "name": "mylist",
+                "type": "list"
+            },
+            "attr3": {
+                "name": "istrue",
+                "type": "boolean"
+            },
+            "attr4": {
+                "name": "mymap",
+                "type": "map"
+            },
+            "attr5": {
+                "name": "myint",
+                "type": "number"
+            }
+        },
+        "config_item_2": {
+            "attr1": "name"
+        }
+    }
+}
