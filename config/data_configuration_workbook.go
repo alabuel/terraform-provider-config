@@ -31,7 +31,7 @@ func dataSourceConfigurationWorkbook() *schema.Resource {
 			},
 			"schema": {
 				Type:     schema.TypeString,
-				Required: true,
+				Optional: true,
 			},
 			"configuration_item": {
 				Type:     schema.TypeString,
