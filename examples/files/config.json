@@ -1,5 +1,5 @@
 {
-    "configuration_workbook_mapping": {
+    "config_schema": {
         "config_item_1": {
             "attr1": {
                 "name": "name",
@@ -23,7 +23,11 @@
             }
         },
         "config_item_2": {
-            "attr1": "name"
+            "attr1": "name",
+            "attr2": {
+                "name": "identity",
+                "type": "tag"
+            }
         }
     }
 }

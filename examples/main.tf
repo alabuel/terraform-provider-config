@@ -9,11 +9,20 @@ terraform {
 
 provider "config" {}
 
-data "config_workbook" "this" {
+data "config_workbook" "csv" {
   csv = file("files/test.csv")
   schema = file("files/config.yaml")
 }
 
-output "data" {
-  value = jsondecode(data.config_workbook.this.json)
+data "config_workbook" "excel" {
+  excel = "files/data.xlsx"
+  worksheet = "Config"
+}
+
+output "csv" {
+  value = jsondecode(data.config_workbook.csv.json)
+}
+
+output "excel" {
+  value = jsondecode(data.config_workbook.excel.json)
 }

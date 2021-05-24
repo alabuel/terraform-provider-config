@@ -1,4 +1,4 @@
-configuration_workbook_mapping:
+config_schema:
   config_item_1:
     attr1:
       name: name

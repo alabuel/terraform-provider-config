@@ -11,9 +11,11 @@ import (
 	"strings"
 	"time"
 
+	"gopkg.in/yaml.v2"
+
+	"github.com/360EntSecGroup-Skylar/excelize/v2"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"gopkg.in/yaml.v2"
 )
 
 func dataSourceConfigurationWorkbook() *schema.Resource {
@@ -27,9 +29,25 @@ func dataSourceConfigurationWorkbook() *schema.Resource {
 			},
 			"csv": {
 				Type:     schema.TypeString,
-				Required: true,
+				Optional: true,
 			},
 			"schema": {
+				Type:     schema.TypeString,
+				Optional: true,
+			},
+			"excel": {
+				Type:     schema.TypeString,
+				Optional: true,
+			},
+			"worksheet": {
+				Type:     schema.TypeString,
+				Optional: true,
+			},
+			"col_start": {
+				Type:     schema.TypeString,
+				Optional: true,
+			},
+			"col_end": {
 				Type:     schema.TypeString,
 				Optional: true,
 			},
@@ -48,6 +66,18 @@ func dataSourceConfigurationItemRead(ctx context.Context, d *schema.ResourceData
 	csv_string := d.Get("csv").(string)
 	schema := d.Get("schema").(string)
 	configuration_item := d.Get("configuration_item").(string)
+	excel_file := d.Get("excel").(string)
+	sheet_name := d.Get("worksheet").(string)
+	start_column := d.Get("col_start").(string)
+	end_column := d.Get("col_end").(string)
+
+	if excel_file != "" {
+		csvstring, err := excelToCSV(excel_file, sheet_name, start_column, end_column)
+		if err != nil {
+			return diag.FromErr(err)
+		}
+		csv_string = csvstring
+	}
 
 	// convert the csv to map
 	csv, err := stringToMap(csv_string)
@@ -70,11 +100,12 @@ func dataSourceConfigurationItemRead(ctx context.Context, d *schema.ResourceData
 		if err != nil {
 			return diag.FromErr(err)
 		}
+		// return diag.FromErr(fmt.Errorf(fmt.Sprintf("%v", map_yaml)))
 	}
 	mapping := map_yaml.(map[interface{}]interface{})
 
 	// remap all csv headers based on mapping configuration
-	records := reMapData(csv, mapping["configuration_workbook_mapping"])
+	records := reMapData(csv, mapping["config_schema"])
 
 	// get the transformed data
 	data := getItemData(records, items, configuration_item)
@@ -87,6 +118,57 @@ func dataSourceConfigurationItemRead(ctx context.Context, d *schema.ResourceData
 	d.SetId(strconv.FormatInt(time.Now().Unix(), 10))
 
 	return diags
+}
+
+func excelToCSV(excel_file string, sheet_name string, start_column string, end_column string) (string, error) {
+	var row_arr = []string{"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"}
+	min := 0
+	max := len(row_arr) - 1
+	if start_column != "" {
+		min = sliceIndex(row_arr, start_column)
+		if min == -1 {
+			min = 0
+		}
+	}
+	if end_column != "" {
+		max = sliceIndex(row_arr, end_column)
+		if max == -1 {
+			max = len(row_arr) - 1
+		}
+	}
+	var csv = []string{}
+
+	f, err := excelize.OpenFile(excel_file)
+	if err != nil {
+		return "", err
+	}
+	// Get all rows
+	rows, err := f.GetRows(sheet_name)
+	if err != nil {
+		return "", err
+	}
+	for _, row := range rows {
+		var sb strings.Builder
+		for idx, colCell := range row {
+			if (idx >= min) && (idx <= max) {
+				sb.WriteString(colCell)
+				if idx != len(row)-1 {
+					sb.WriteString(",")
+				}
+			}
+		}
+		csv = append(csv, sb.String())
+	}
+	return strings.Join(csv, "\n"), err
+}
+
+func sliceIndex(arr []string, s string) int {
+	for i, v := range arr {
+		if v == s {
+			return i
+		}
+	}
+	return -1
 }
 
 func getConfigurationItems(csv []map[string]string) []string {
@@ -331,7 +413,7 @@ func createDefaultMapping(items []string, csv []map[string]string) (map[interfac
 		}
 		item_map[s] = item
 	}
-	mapping["configuration_workbook_mapping"] = item_map
+	mapping["config_schema"] = item_map
 
 	return mapping, nil
 }

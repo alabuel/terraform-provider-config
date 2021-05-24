@@ -1,5 +1,5 @@
 TEST?=$$(go list ./... | grep -v 'vendor')
-HOSTNAME=cloud
+HOSTNAME=alabuel
 NAMESPACE=common
 NAME=config
 VERSION=0.0.1
