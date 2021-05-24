@@ -17,7 +17,6 @@ on:
 jobs:
   goreleaser:
     runs-on: ubuntu-latest
-    environment: MyEnvironment
     steps:
       -
         name: Checkout
@@ -33,7 +32,8 @@ jobs:
       -
         name: Import GPG key
         id: import_gpg
-        uses: hashicorp/ghaction-import-gpg@v2.1.0
+        #uses: hashicorp/ghaction-import-gpg@v2.1.0
+        uses: crazy-max/ghaction-import-gpg
         env:
           # These secrets will need to be configured for the repository:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
