@@ -17,6 +17,7 @@ on:
 jobs:
   goreleaser:
     runs-on: ubuntu-latest
+    environment: MyEnvironment
     steps:
       -
         name: Checkout
