@@ -2,7 +2,7 @@ terraform {
   required_providers {
     config = {
       version = "0.0.1"
-      source = "cloud/common/config"
+      source = "aa/common/config"
     }
   }
 }
