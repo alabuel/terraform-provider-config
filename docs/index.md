@@ -12,8 +12,8 @@ description: |-
 terraform {
   required_providers {
     config = {
-      version = "0.1.0"
-      source = "aa/common/config"
+      version = "0.1.1"
+      source = "alabuel/config"
     }
   }
 }

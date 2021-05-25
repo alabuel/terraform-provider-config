@@ -1,8 +1,8 @@
 terraform {
   required_providers {
     config = {
-      version = "0.0.1"
-      source = "aa/common/config"
+      version = "0.1.1"
+      source = "alabuel/config"
     }
   }
 }
