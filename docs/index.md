@@ -12,7 +12,7 @@ description: |-
 terraform {
   required_providers {
     config = {
-      version = "0.0.1"
+      version = "0.1.0"
       source = "aa/common/config"
     }
   }

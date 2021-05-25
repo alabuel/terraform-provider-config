@@ -13,7 +13,7 @@ terraform {
   required_providers {
     config = {
       source = "alabuel/config/workbook"
-      version = "0.0.1"
+      version = "0.1.0"
     }
   }
 }
