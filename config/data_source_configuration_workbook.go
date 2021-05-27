@@ -55,6 +55,7 @@ func dataSourceConfigurationWorkbook() *schema.Resource {
 				Type:     schema.TypeString,
 				Optional: true,
 			},
+			"filter": dataSourceFilterSchema(),
 		},
 	}
 }
@@ -64,12 +65,16 @@ func dataSourceConfigurationItemRead(ctx context.Context, d *schema.ResourceData
 
 	// get all arguments passed to the resource
 	csv_string := d.Get("csv").(string)
-	schema := d.Get("schema").(string)
+	config_schema := d.Get("schema").(string)
 	configuration_item := d.Get("configuration_item").(string)
 	excel_file := d.Get("excel").(string)
 	sheet_name := d.Get("worksheet").(string)
 	start_column := d.Get("col_start").(string)
 	end_column := d.Get("col_end").(string)
+	var filters []map[string]interface{}
+	if v, ok := d.GetOk("filter"); ok {
+		filters = buildConfigDataSourceFilters(v.(*schema.Set))
+	}
 
 	if excel_file != "" {
 		csvstring, err := excelToCSV(excel_file, sheet_name, start_column, end_column)
@@ -90,8 +95,8 @@ func dataSourceConfigurationItemRead(ctx context.Context, d *schema.ResourceData
 
 	// convert the schema to map
 	var map_yaml interface{}
-	if schema != "" {
-		map_yaml, err = stringToInterface(schema)
+	if config_schema != "" {
+		map_yaml, err = stringToInterface(config_schema)
 		if err != nil {
 			return diag.FromErr(err)
 		}
@@ -105,7 +110,7 @@ func dataSourceConfigurationItemRead(ctx context.Context, d *schema.ResourceData
 	mapping := map_yaml.(map[interface{}]interface{})
 
 	// remap all csv headers based on mapping configuration
-	records := reMapData(csv, mapping["config_schema"])
+	records := reMapData(csv, mapping["config_schema"], filters)
 
 	// get the transformed data
 	data := getItemData(records, items, configuration_item)
@@ -223,7 +228,7 @@ func unique(items []string) []string {
 	return list
 }
 
-func reMapData(csv []map[string]string, mapping interface{}) []map[string]interface{} {
+func reMapData(csv []map[string]string, mapping interface{}, filters []map[string]interface{}) []map[string]interface{} {
 	new_csv := make([]map[string]interface{}, len(csv))
 	for key, value := range csv {
 		item_key := ""
@@ -235,10 +240,11 @@ func reMapData(csv []map[string]string, mapping interface{}) []map[string]interf
 		new_value := make(map[string]interface{})
 		new_tag := make(map[string]string)
 		tags := make(map[string]string)
+		include_value := false
+		var new_key, new_type string
 		for k, v := range value {
 			_ = v
 			if strings.HasPrefix(k, "attr") {
-				var new_key, new_type string
 				new_key, new_type = getMapValue(mapping, item_key, k)
 				if new_key != "" {
 					if new_type == "string" {
@@ -306,12 +312,22 @@ func reMapData(csv []map[string]string, mapping interface{}) []map[string]interf
 					new_value[new_key] = vmap
 				}
 			}
+
+			// check if value included in filter
+			if !include_value {
+				include_value = checkFiltersForItem(filters, k, value[k])
+			}
+			if !include_value {
+				include_value = checkFiltersForItem(filters, new_key, value[k])
+			}
 		}
 		for k, v := range new_tag {
 			tags[k] = v
 		}
-		new_value["tags"] = tags
-		new_csv[key] = new_value
+		if include_value {
+			new_value["tags"] = tags
+			new_csv[key] = new_value
+		}
 	}
 	return new_csv
 }

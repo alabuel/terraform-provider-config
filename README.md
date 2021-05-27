@@ -12,8 +12,8 @@ You can also provide a schema to set the key names of each map for your configur
 terraform {
   required_providers {
     config = {
-      source = "alabuel/config/workbook"
-      version = "0.1.0"
+      source = "alabuel/config"
+      version = "0.1.1"
     }
   }
 }

@@ -30,6 +30,10 @@ data "config_workbook" "csv_file" {
 data "config_workbook" "excel" {
   excel = "filename.xlsx"
   worksheet = "Sheet1"
+  filter {
+    name = "columnHeaderName"
+    values = ["value1","value2","value3"]
+  }
 }
 ```
 
@@ -190,14 +194,24 @@ schema_config:
 
 ### Optional
 
-- **col_end** (String)
-- **col_start** (String)
-- **configuration_item** (String)
-- **csv** (String)
-- **excel** (String)
-- **id** (String) The ID of this resource.
-- **json** (String)
-- **schema** (String)
-- **worksheet** (String)
+- **col_end** (String) - (Optional) Sets the end column of the excel worksheet to get the data. Default value is last column with header value.
+- **col_start** (String) - (Optional) Sets the start column of the excel worksheet to get the data. Default value is column A.
+- **configuration_item** (String) - (Optional) Process only the excel/csv with this value.
+- **csv** (String) - (Optional) Comma-separated values passed as a single string.
+- **excel** (String) - (Optional) Filename (full-path) of the excel worksheet to get the data.
+- **schema** (String) - (Optional) JSON/YAML format string containing the schema of the configurations.
+- **worksheet** (String) - (Optional) The sheet name of the excel worksheet
 
+#### There should only be 1 instance of **csv** or **excel**.  You cannot define both on the same data source
+
+### Filters
+
+Nested `filter` blocks have the following structure:
+- **name** (String) - (Required) The name of the header/column
+- **values** (List) - (Required) The list of valid values to filter
+
+### Output
+
+- **id** (String) The ID of this resource.
+- **json** (String) - JSON value in string format.  To use this in other resources, you must use the function `jsondecode`.
 
