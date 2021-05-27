@@ -314,11 +314,15 @@ func reMapData(csv []map[string]string, mapping interface{}, filters []map[strin
 			}
 
 			// check if value included in filter
-			if !include_value {
-				include_value = checkFiltersForItem(filters, k, value[k])
-			}
-			if !include_value {
-				include_value = checkFiltersForItem(filters, new_key, value[k])
+			if len(filters) > 0 {
+				if !include_value {
+					include_value = checkFiltersForItem(filters, k, value[k])
+				}
+				if !include_value {
+					include_value = checkFiltersForItem(filters, new_key, value[k])
+				}
+			} else {
+				include_value = true
 			}
 		}
 		for k, v := range new_tag {
