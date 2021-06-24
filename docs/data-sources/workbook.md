@@ -21,6 +21,10 @@ data "config_workbook "csv" {
 # reading from a csv file
 data "config_workbook" "csv_file" {
   csv = file("filename.csv")
+  filter {
+    name = "columnHeaderName"
+    values = ["value1","value2","value3"]
+  }
 }
 ```
 
@@ -196,7 +200,7 @@ schema_config:
 
 - **col_end** (String) - (Optional) Sets the end column of the excel worksheet to get the data. Default value is last column with header value.
 - **col_start** (String) - (Optional) Sets the start column of the excel worksheet to get the data. Default value is column A.
-- **configuration_item** (String) - (Optional) Process only the excel/csv with this value.
+- **configuration_item** (String) - (Optional) Column name of the configuration item.
 - **csv** (String) - (Optional) Comma-separated values passed as a single string.
 - **excel** (String) - (Optional) Filename (full-path) of the excel worksheet to get the data.
 - **schema** (String) - (Optional) JSON/YAML format string containing the schema of the configurations.

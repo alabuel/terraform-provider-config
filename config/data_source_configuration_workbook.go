@@ -75,6 +75,9 @@ func dataSourceConfigurationItemRead(ctx context.Context, d *schema.ResourceData
 	if v, ok := d.GetOk("filter"); ok {
 		filters = buildConfigDataSourceFilters(v.(*schema.Set))
 	}
+	if configuration_item == "" {
+		configuration_item = "configuration_item"
+	}
 
 	if excel_file != "" {
 		csvstring, err := excelToCSV(excel_file, sheet_name, start_column, end_column)
@@ -91,7 +94,7 @@ func dataSourceConfigurationItemRead(ctx context.Context, d *schema.ResourceData
 	}
 
 	// get all unique configuration items
-	items := unique(getConfigurationItems(csv))
+	items := unique(getConfigurationItems(csv, configuration_item))
 
 	// convert the schema to map
 	var map_yaml interface{}
@@ -101,7 +104,7 @@ func dataSourceConfigurationItemRead(ctx context.Context, d *schema.ResourceData
 			return diag.FromErr(err)
 		}
 	} else {
-		map_yaml, err = createDefaultMapping(items, csv)
+		map_yaml, err = createDefaultMapping(items, csv, configuration_item)
 		if err != nil {
 			return diag.FromErr(err)
 		}
@@ -110,7 +113,7 @@ func dataSourceConfigurationItemRead(ctx context.Context, d *schema.ResourceData
 	mapping := map_yaml.(map[interface{}]interface{})
 
 	// remap all csv headers based on mapping configuration
-	records := reMapData(csv, mapping["config_schema"], filters)
+	records := reMapData(csv, mapping["config_schema"], filters, configuration_item)
 
 	// get the transformed data
 	data := getItemData(records, items, configuration_item)
@@ -176,11 +179,11 @@ func sliceIndex(arr []string, s string) int {
 	return -1
 }
 
-func getConfigurationItems(csv []map[string]string) []string {
+func getConfigurationItems(csv []map[string]string, configuration_item string) []string {
 	var items []string
 	for _, value := range csv {
 		for k, v := range value {
-			if k == "configuration_item" {
+			if k == configuration_item {
 				items = append(items, v)
 			}
 		}
@@ -193,21 +196,21 @@ func getItemData(csv []map[string]interface{}, items []string, configuration_ite
 	for _, item := range items {
 		var itemdatalist []map[string]interface{}
 		for _, value := range csv {
-			if value["configuration_item"] == item {
+			if value[configuration_item] == item {
 				itemdata := make(map[string]interface{})
 				for k, v := range value {
-					if k != "configuration_item" {
+					if k != configuration_item {
 						itemdata[k] = v
 					}
 				}
 				itemdatalist = append(itemdatalist, itemdata)
-				if configuration_item != "" {
-					if configuration_item == item {
-						listitem[item] = itemdatalist
-					}
-				} else {
-					listitem[item] = itemdatalist
-				}
+				// if configuration_item != "" {
+				// 	if configuration_item == item {
+				// 		listitem[item] = itemdatalist
+				// 	}
+				// } else {
+				listitem[item] = itemdatalist
+				// }
 
 			}
 		}
@@ -228,12 +231,12 @@ func unique(items []string) []string {
 	return list
 }
 
-func reMapData(csv []map[string]string, mapping interface{}, filters []map[string]interface{}) []map[string]interface{} {
+func reMapData(csv []map[string]string, mapping interface{}, filters []map[string]interface{}, configuration_item string) []map[string]interface{} {
 	new_csv := make([]map[string]interface{}, len(csv))
 	for key, value := range csv {
 		item_key := ""
 		for k, v := range value {
-			if k == "configuration_item" {
+			if k == configuration_item {
 				item_key = v
 			}
 		}
@@ -271,7 +274,7 @@ func reMapData(csv []map[string]string, mapping interface{}, filters []map[strin
 						new_value[new_key] = value[k]
 					}
 				}
-			} else if k == "configuration_item" {
+			} else if k == configuration_item {
 				new_value[k] = value[k]
 			} else if strings.HasPrefix(k, "t_") || strings.HasPrefix(k, "tag_") {
 				if value[k] != "" {
@@ -311,6 +314,8 @@ func reMapData(csv []map[string]string, mapping interface{}, filters []map[strin
 					}
 					new_value[new_key] = vmap
 				}
+			} else {
+				new_value[k] = value[k]
 			}
 
 			// check if value included in filter
@@ -420,14 +425,14 @@ func getMapValue(config interface{}, config_item string, config_key string) (str
 // 	return v, nil
 // }
 
-func createDefaultMapping(items []string, csv []map[string]string) (map[interface{}]interface{}, error) {
+func createDefaultMapping(items []string, csv []map[string]string, configuration_item string) (map[interface{}]interface{}, error) {
 	mapping := make(map[interface{}]interface{})
-
 	item_map := make(map[interface{}]interface{})
+
 	for _, s := range items {
 		item := make(map[interface{}]interface{})
 		for k := range csv[0] {
-			if k != "configuration_item" {
+			if k != configuration_item {
 				item[k] = k
 			}
 		}
