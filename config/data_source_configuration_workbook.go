@@ -193,16 +193,16 @@ func excelToCSV(excel_file string, sheet_name string, start_column string, end_c
 			if (i >= min) && (i <= max) {
 				if !config_item_exist {
 					if idx == 0 && i == min {
-						sb.WriteString("configuration_item,")
+						sb.WriteString("\"configuration_item\",")
 					} else if idx > 0 && i == min {
-						sb.WriteString(configuration_item + ",")
+						sb.WriteString("\"" + configuration_item + "\",")
 					}
 				}
 
 				if i >= len(row) {
 					sb.WriteString("")
 				} else {
-					sb.WriteString(row[i])
+					sb.WriteString("\"" + row[i] + "\"")
 				}
 				if i < row_len-1 {
 					sb.WriteString(",")
