@@ -1,8 +1,8 @@
 terraform {
   required_providers {
     config = {
-      version = "0.1.1"
-      source = "aa/common/config"
+      version = "0.1.4"
+      source = "alabuel/config"
     }
   }
 }
@@ -19,15 +19,15 @@ data "config_workbook" "csv" {
   configuration_item = "configuratio_item"
 }
 
-# data "config_workbook" "excel" {
-#   excel = "files/data.xlsx"
-#   worksheet = "Config"
-# }
+data "config_workbook" "excel" {
+  excel = "files/data.xlsx"
+  worksheet = "Config"
+}
 
 output "csv" {
   value = jsondecode(data.config_workbook.csv.json)
 }
 
-# output "excel" {
-#   value = jsondecode(data.config_workbook.excel.json)
-# }
+output "excel" {
+  value = jsondecode(data.config_workbook.excel.json)
+}
