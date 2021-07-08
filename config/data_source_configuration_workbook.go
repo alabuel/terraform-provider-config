@@ -397,7 +397,7 @@ func reMapData(csv []map[string]string, mapping interface{}, filters []map[strin
 }
 
 func getMapValue(config interface{}, config_item string, config_key string) (string, string) {
-	return_value := ""
+	return_value := config_key
 	return_type := "string"
 	item := config.(map[interface{}]interface{})
 	for _, key := range reflect.ValueOf(item).MapKeys() {
