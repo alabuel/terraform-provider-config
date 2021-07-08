@@ -202,9 +202,9 @@ func excelToCSV(excel_file string, sheet_name string, start_column string, end_c
 					sb.WriteString("")
 				} else {
 					sb.WriteString(row[i])
-					if (i != len(row)-1) && (i != max) {
-						sb.WriteString(",")
-					}
+				}
+				if (i != len(row)-1) && (i != max) {
+					sb.WriteString(",")
 				}
 			}
 		}
