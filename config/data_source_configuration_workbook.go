@@ -190,20 +190,21 @@ func excelToCSV(excel_file string, sheet_name string, start_column string, end_c
 	for idx, row := range rows {
 		var sb strings.Builder
 		for i := 0; i < row_len; i++ {
-			if !config_item_exist {
-				if idx == 0 {
-					sb.WriteString("configuration_item")
-				} else {
-					sb.WriteString(configuration_item)
+			if (i >= min) && (i <= max) {
+				if !config_item_exist {
+					if idx == 0 && i == min {
+						sb.WriteString("configuration_item")
+					} else if idx > 0 && i == min {
+						sb.WriteString(configuration_item)
+					}
 				}
-			}
-			if (i >= min) && (i <= max) && (i < row_len) {
+
 				if i >= len(row) {
 					sb.WriteString("")
 				} else {
 					sb.WriteString(row[i])
 				}
-				if (i != len(row)-1) && (i != max) {
+				if i < row_len-1 {
 					sb.WriteString(",")
 				}
 			}
