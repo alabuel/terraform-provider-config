@@ -54,3 +54,12 @@ func checkFiltersForItem(filters []map[string]interface{}, key string, value str
 	}
 	return false
 }
+
+func stringInList(s string, list []string) bool {
+	for _, b := range list {
+		if b == s {
+			return true
+		}
+	}
+	return false
+}

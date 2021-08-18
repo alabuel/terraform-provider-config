@@ -39,6 +39,13 @@ data "config_workbook" "excel" {
     values = ["value1","value2","value3"]
   }
 }
+
+data "config_workbook" "excel_vertical" {
+  excel = "filename.xlsx"
+  worksheet = "Sheet2"
+  orientation = "vertical"
+  col_config_item = "vertical_data"
+}
 ```
 
 ### Example - Using a CSV with a schema
@@ -205,6 +212,7 @@ schema_config:
 - **excel** (String) - (Optional) Filename (full-path) of the excel worksheet to get the data.
 - **schema** (String) - (Optional) JSON/YAML format string containing the schema of the configurations.
 - **worksheet** (String) - (Optional) The sheet name of the excel worksheet
+- **orientation** (String) - (Optional) default horizontal. Valid values are (horizontal,vertical)
 
 #### There should only be 1 instance of **csv** or **excel**.  You cannot define both on the same data source
 

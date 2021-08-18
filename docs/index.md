@@ -12,7 +12,7 @@ description: |-
 terraform {
   required_providers {
     config = {
-      version = "0.1.3"
+      version = "x.x.x"
       source = "alabuel/config"
     }
   }

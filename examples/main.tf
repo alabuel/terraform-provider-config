@@ -1,13 +1,14 @@
 terraform {
   required_providers {
     config = {
-      version = "0.1.4"
+      version = "0.1.6"
       source = "alabuel/config"
     }
   }
 }
 
 provider "config" {}
+
 
 data "config_workbook" "csv" {
   csv = file("files/test.csv")
@@ -19,15 +20,23 @@ data "config_workbook" "csv" {
   configuration_item = "configuratio_item"
 }
 
+
 data "config_workbook" "excel" {
   excel = "files/data.xlsx"
   worksheet = "Config"
 }
 
-output "csv" {
-  value = jsondecode(data.config_workbook.csv.json)
+data "config_workbook" "vexcel" {
+  excel = "files/data.xlsx"
+  worksheet = "Vert"
+  type = "vertical"
+  configuration_item = "my_vertical"
 }
 
-output "excel" {
+output "horiz" {
   value = jsondecode(data.config_workbook.excel.json)
+}
+
+output "vert" {
+  value = jsondecode(data.config_workbook.vexcel.json)
 }
