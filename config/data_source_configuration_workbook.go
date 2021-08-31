@@ -372,12 +372,16 @@ func reMapData(csv []map[string]string, mapping interface{}, filters []map[strin
 					replacer := strings.NewReplacer("s_", "", "string_", "")
 					new_key := strings.Title(replacer.Replace(k))
 					new_value[new_key] = value[k]
+				} else {
+					new_value[new_key] = ""
 				}
 			} else if strings.HasPrefix(k, "t_") || strings.HasPrefix(k, "tag_") {
 				if value[k] != "" {
 					replacer := strings.NewReplacer("t_", "", "tag_", "")
 					new_key := strings.Title(replacer.Replace(k))
 					new_tag[new_key] = value[k]
+				} else {
+					new_tag[new_key] = ""
 				}
 			} else if strings.HasPrefix(k, "n_") || strings.HasPrefix(k, "num_") || strings.HasPrefix(k, "number_") || strings.HasPrefix(k, "numeric_") {
 				if value[k] != "" {
@@ -385,6 +389,8 @@ func reMapData(csv []map[string]string, mapping interface{}, filters []map[strin
 					new_key := replacer.Replace(k)
 					n, _ := strconv.ParseFloat(value[k], 64)
 					new_value[new_key] = n
+				} else {
+					new_value[new_key] = 0
 				}
 			} else if strings.HasPrefix(k, "b_") || strings.HasPrefix(k, "bool_") || strings.HasPrefix(k, "boolean_") {
 				if value[k] != "" {
@@ -392,12 +398,16 @@ func reMapData(csv []map[string]string, mapping interface{}, filters []map[strin
 					new_key := replacer.Replace(k)
 					val, _ := strconv.ParseBool(value[k])
 					new_value[new_key] = val
+				} else {
+					new_value[new_key] = false
 				}
 			} else if strings.HasPrefix(k, "l_") || strings.HasPrefix(k, "list_") {
 				if value[k] != "" {
 					replacer := strings.NewReplacer("l_", "", "list_", "")
 					new_key := replacer.Replace(k)
 					new_value[new_key] = strings.Split(value[k], ",")
+				} else {
+					new_value[new_key] = []string{}
 				}
 			} else if strings.HasPrefix(k, "m_") || strings.HasPrefix(k, "map_") {
 				if value[k] != "" {
@@ -410,6 +420,8 @@ func reMapData(csv []map[string]string, mapping interface{}, filters []map[strin
 						vmap[mlist[0]] = mlist[1]
 					}
 					new_value[new_key] = vmap
+				} else {
+					new_value[new_key] = map[string]string{}
 				}
 			} else {
 				new_value[k] = value[k]
