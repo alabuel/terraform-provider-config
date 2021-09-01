@@ -224,7 +224,7 @@ func excelToCSV(excel_file string, sheet_name string, start_column string, end_c
 					} else {
 						sb.WriteString("\"" + row[i] + "\"")
 					}
-					if i < row_len-1 {
+					if (i < row_len-1) && (i < max) {
 						sb.WriteString(",")
 					}
 				}
