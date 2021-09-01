@@ -119,41 +119,53 @@ func dataSourceConfigurationItemRead(ctx context.Context, d *schema.ResourceData
 			return diag.FromErr(err)
 		}
 		csv_string = csvstring
+		// 	return diag.FromErr(fmt.Errorf(fmt.Sprintf("%v", "The configuration item \""+configuration_item+"\" has no data")))
 	}
 
-	// convert the csv to map
-	csv, err := stringToMap(csv_string)
-	if err != nil {
-		return diag.FromErr(err)
-	}
-
-	// get all unique configuration items
-	items := unique(getConfigurationItems(csv, col_config_item))
-
-	// convert the schema to map
-	var map_yaml interface{}
-	if config_schema != "" {
-		map_yaml, err = stringToInterface(config_schema)
+	if csv_string != "" {
+		// convert the csv to map
+		// var csv []map[string]string
+		csv, err := stringToMap(csv_string)
 		if err != nil {
+			return diag.FromErr(err)
+		}
+
+		// get all unique configuration items
+		items := unique(getConfigurationItems(csv, col_config_item))
+
+		// convert the schema to map
+		var map_yaml interface{}
+		if config_schema != "" {
+			map_yaml, err = stringToInterface(config_schema)
+			if err != nil {
+				return diag.FromErr(err)
+			}
+		} else {
+			map_yaml, err = createDefaultMapping(items, csv, col_config_item)
+			if err != nil {
+				return diag.FromErr(err)
+			}
+		}
+		mapping := map_yaml.(map[interface{}]interface{})
+
+		// remap all csv headers based on mapping configuration
+		records := reMapData(csv, mapping["config_schema"], filters, col_config_item)
+
+		// get the transformed data
+		data := getItemData(records, items, col_config_item)
+
+		// set the data to the attribute json
+		if err := d.Set("json", data); err != nil {
 			return diag.FromErr(err)
 		}
 	} else {
-		map_yaml, err = createDefaultMapping(items, csv, col_config_item)
-		if err != nil {
+		// set the data to the attribute json
+		if configuration_item == "" {
+			configuration_item = sheet_name
+		}
+		if err := d.Set("json", "{\""+configuration_item+"\": []}"); err != nil {
 			return diag.FromErr(err)
 		}
-	}
-	mapping := map_yaml.(map[interface{}]interface{})
-
-	// remap all csv headers based on mapping configuration
-	records := reMapData(csv, mapping["config_schema"], filters, col_config_item)
-
-	// get the transformed data
-	data := getItemData(records, items, col_config_item)
-
-	// set the data to the attribute json
-	if err := d.Set("json", data); err != nil {
-		return diag.FromErr(err)
 	}
 
 	d.SetId(strconv.FormatInt(time.Now().Unix(), 10))
@@ -252,6 +264,9 @@ func excelToCSV(excel_file string, sheet_name string, start_column string, end_c
 			}
 		}
 		csv = append(csv, sb.String())
+	}
+	if len(csv) == 1 {
+		return "", err
 	}
 	return strings.Join(csv, "\n"), err
 }
