@@ -98,6 +98,12 @@ func dataSourceConfigurationItemRead(ctx context.Context, d *schema.ResourceData
 	if col_config_item == "" {
 		col_config_item = "configuration_item"
 	}
+
+	// set default value for configuration_item
+	if configuration_item == "" && sheet_name != "" {
+		configuration_item = sheet_name
+	}
+
 	valid_vertical_orientation := []string{"vertical", "Vertical", "VERTICAL", "vert", "Vert", "VERT", "v", "V"}
 	valid_horizontal_orientation := []string{"horizontal", "Horizontal", "HORIZONTAL", "horiz", "Horiz", "HORIZ", "h", "H"}
 	if stringInList(orientation, valid_vertical_orientation) {
