@@ -82,12 +82,8 @@ func dataSourceConfigurationItemRead(ctx context.Context, d *schema.ResourceData
 	orientation := d.Get("orientation").(string)
 	start_column := d.Get("col_start").(string)
 	end_column := d.Get("col_end").(string)
-	var filters []map[string]interface{}
 
-	// make sure csv and excel is not on the same resource
-	if csv_string != "" && excel_file != "" {
-		return diag.FromErr(fmt.Errorf(fmt.Sprintf("%v", "Cannot use csv and excel on the same resource")))
-	}
+	var filters []map[string]interface{}
 
 	// gather all filters
 	if v, ok := d.GetOk("filter"); ok {
@@ -104,8 +100,21 @@ func dataSourceConfigurationItemRead(ctx context.Context, d *schema.ResourceData
 		configuration_item = sheet_name
 	}
 
-	valid_vertical_orientation := []string{"vertical", "Vertical", "VERTICAL", "vert", "Vert", "VERT", "v", "V"}
-	valid_horizontal_orientation := []string{"horizontal", "Horizontal", "HORIZONTAL", "horiz", "Horiz", "HORIZ", "h", "H"}
+	// ###### Start Validations ######
+
+	// make sure csv or excel is used
+	if csv_string == "" && excel_file == "" {
+		return diag.FromErr(fmt.Errorf(fmt.Sprintf("%v", "Must use csv or excel on the resource")))
+	}
+
+	// make sure csv and excel is not on the same resource
+	if csv_string != "" && excel_file != "" {
+		return diag.FromErr(fmt.Errorf(fmt.Sprintf("%v", "Cannot use csv and excel on the same resource")))
+	}
+
+	orientation = strings.ToLower(orientation)
+	valid_vertical_orientation := []string{"vertical", "vert", "v"}
+	valid_horizontal_orientation := []string{"horizontal", "horiz", "h"}
 	if stringInList(orientation, valid_vertical_orientation) {
 		orientation = "vertical"
 	} else if stringInList(orientation, valid_horizontal_orientation) {
@@ -118,14 +127,20 @@ func dataSourceConfigurationItemRead(ctx context.Context, d *schema.ResourceData
 		return diag.FromErr(fmt.Errorf(fmt.Sprintf("%v", "configuration_item is required if type is vertical")))
 	}
 
+	if orientation == "vertical" && csv_string != "" {
+		return diag.FromErr(fmt.Errorf(fmt.Sprintf("%v", "vertical orientation is only valid for excel")))
+	}
+
+	// ###### End Validations ######
+
 	// check if excel is being used
 	if excel_file != "" {
 		csvstring, err := excelToCSV(excel_file, sheet_name, start_column, end_column, configuration_item, col_config_item, orientation)
 		if err != nil {
-			return diag.FromErr(err)
+			return diag.FromErr(fmt.Errorf(fmt.Sprintf("%v", csvstring)))
 		}
 		csv_string = csvstring
-		// 	return diag.FromErr(fmt.Errorf(fmt.Sprintf("%v", "The configuration item \""+configuration_item+"\" has no data")))
+		// return diag.FromErr(fmt.Errorf(fmt.Sprintf("%v", csvstring)))
 	}
 
 	if csv_string != "" {
@@ -208,7 +223,7 @@ func excelToCSV(excel_file string, sheet_name string, start_column string, end_c
 	// Get all rows
 	rows, err := f.GetRows(sheet_name)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf(fmt.Sprintf("%v", rows))
 	}
 
 	// get the number of columns
@@ -247,33 +262,64 @@ func excelToCSV(excel_file string, sheet_name string, start_column string, end_c
 					}
 				}
 			}
-			csv = append(csv, sb.String())
+
+			// only accept rows that are not empty
+			replacer := strings.NewReplacer(",", "", " ", "", "[]", "", "{}", "", "\"", "")
+			if replacer.Replace(sb.String()) != "" {
+				csv = append(csv, sb.String())
+			}
 		}
 	} else {
+		// Get total number of columns
+		maxcol := 0
+		for _, row := range rows {
+			if len(row) > maxcol {
+				maxcol = len(row)
+			}
+		}
 		var sb strings.Builder
 		sb.WriteString("\"configuration_item\",")
+		fieldcount := 0
 		for idx, row := range rows {
-			if idx == len(rows)-1 {
-				sb.WriteString("\"" + row[0] + "\"")
-			} else {
-				sb.WriteString("\"" + row[0] + "\",")
+			if strings.Trim(row[0], " ") != "" {
+				if idx == len(rows)-1 {
+					sb.WriteString("\"" + row[0] + "\"")
+				} else {
+					sb.WriteString("\"" + row[0] + "\",")
+				}
+				fieldcount++
 			}
 		}
 		csv = append(csv, sb.String())
-		sb.Reset()
-		sb.WriteString("\"" + configuration_item + "\",")
-		for idx, row := range rows {
-			if idx == len(rows)-1 {
-				sb.WriteString("\"" + row[1] + "\"")
-			} else {
-				sb.WriteString("\"" + row[1] + "\",")
+		for i := 1; i < maxcol; i++ {
+			sb.Reset()
+			sb.WriteString("\"" + configuration_item + "\",")
+			for idx, row := range rows {
+				if i > len(row)-1 {
+					if idx < len(rows)-1 {
+						sb.WriteString("\"\",")
+					} else {
+						sb.WriteString("\"\"")
+					}
+				} else {
+					if idx < len(rows)-1 {
+						sb.WriteString("\"" + row[i] + "\",")
+					} else {
+						sb.WriteString("\"" + row[i] + "\"")
+					}
+				}
+			}
+			// only accept rows that are not empty
+			replacer := strings.NewReplacer(",", "", " ", "", "[]", "", "{}", "", "\"", "")
+			if replacer.Replace(sb.String()) != "" {
+				csv = append(csv, sb.String())
 			}
 		}
-		csv = append(csv, sb.String())
 	}
 	if len(csv) == 1 {
 		return "", err
 	}
+	// return strings.Join(csv, "\n"), fmt.Errorf(fmt.Sprintf("%v", csv))
 	return strings.Join(csv, "\n"), err
 }
 
@@ -390,7 +436,7 @@ func reMapData(csv []map[string]string, mapping interface{}, filters []map[strin
 				new_value[k] = value[k]
 			} else if strings.HasPrefix(k, "s_") || strings.HasPrefix(k, "string_") {
 				replacer := strings.NewReplacer("s_", "", "string_", "")
-				new_key := strings.Title(replacer.Replace(k))
+				new_key := replacer.Replace(k)
 				if value[k] != "" {
 					new_value[new_key] = value[k]
 				} else {
@@ -430,8 +476,8 @@ func reMapData(csv []map[string]string, mapping interface{}, filters []map[strin
 				} else {
 					new_value[new_key] = []string{}
 				}
-			} else if strings.HasPrefix(k, "m_") || strings.HasPrefix(k, "map_") {
-				replacer := strings.NewReplacer("m_", "", "map_", "")
+			} else if strings.HasPrefix(k, "m_") || strings.HasPrefix(k, "map_") || strings.HasPrefix(k, "h_") || strings.HasPrefix(k, "hash_") {
+				replacer := strings.NewReplacer("m_", "", "map_", "", "h_", "", "hash_", "")
 				new_key := replacer.Replace(k)
 				if value[k] != "" {
 					vlist := strings.Split(value[k], ",")

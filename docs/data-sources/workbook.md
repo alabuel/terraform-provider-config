@@ -10,10 +10,10 @@ description: |-
 
 ### Example - Using a CSV
 
-```hcl
+```terraform
 data "config_workbook "csv" {
   csv = <<-EOT
-  configuration_item,attr1,attr2,attr3
+  configuration_item,name,b_create,cidr_block
   vpc,my_vpc,1,"10.0.0.0/16"
   EOT
 }
@@ -30,7 +30,7 @@ data "config_workbook" "csv_file" {
 
 ### Example - Using an Excel file
 
-```hcl
+```terraform
 data "config_workbook" "excel" {
   excel = "filename.xlsx"
   worksheet = "Sheet1"
@@ -44,13 +44,13 @@ data "config_workbook" "excel_vertical" {
   excel = "filename.xlsx"
   worksheet = "Sheet2"
   orientation = "vertical"
-  col_config_item = "vertical_data"
+  configuration_item = "vertical_data"
 }
 ```
 
 ### Example - Using a CSV with a schema
 
-```hcl
+```terraform
 data "config_workbook" "csv_using_yaml" {
   csv = file("filename.csv")
   schema = file("schema.yaml")
@@ -63,7 +63,7 @@ data "config_workbook" "csv_using_json" {
 ```
 
 ### Example - Using an Excel with a schema
-```hcl
+```terraform
 data "config_workbook" "excel_using_yaml" {
   excel = "filename.xlsx"
   worksheet = "Sheet1"
@@ -80,7 +80,7 @@ data "config_workbook" "excel_using_json" {
 ### Schema format - Example 1
 ```yaml
 # you can set the attribute types
-schema_config:
+config_schema:
   vpc:
     attr1:
       name: name
@@ -93,7 +93,7 @@ schema_config:
       type: string
 
 # this format assumes that all attributes are of "string" types
-schema_config:
+config_schema:
   vpc:
     attr1: name
     attr2: create
@@ -105,7 +105,7 @@ schema_config:
 ```json
 // you can set the attribute types
 {
-  "schema_config": {
+  "config_schema": {
     "vpc": {
       "attr1": {
         "name": "name",
@@ -125,7 +125,7 @@ schema_config:
 
 // this format assumes that all attributes are of "string" types
 {
-  "schema_config": {
+  "config_schema": {
     "vpc": {
       "attr1": "name",
       "attr2": "create",
@@ -148,8 +148,9 @@ schema_config:
 3. You can preset the type of the attribute using prefixes.
     - `s_` or `string_`
     - `n_` or `num_` or `number_` or `numeric_`
-    - `b_` or `bool_` or `boolean`
+    - `b_` or `bool_` or `boolean_`
     - `m_` or `map_`
+    - `h_` or `hash_`
     - `l_` or `list_`
     - `t_` or `tag_`
     Attributes without prefixes will be treated as string.  Boolean values are (1,yes,true = True; 0,no,false = False)
