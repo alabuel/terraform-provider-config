@@ -40,6 +40,17 @@ data "config_workbook" "excel" {
   }
 }
 
+data "config_workbook" "excel" {
+  excel = "filename.xlsx"
+  worksheet = "Sheet1"
+  lookup {
+    column = "script_name"
+    worksheet = "event_target"
+    key = "name"
+    value = "script"
+  }
+}
+
 data "config_workbook" "excel_vertical" {
   excel = "filename.xlsx"
   worksheet = "Sheet2"
@@ -214,14 +225,24 @@ config_schema:
 - **schema** (String) - (Optional) JSON/YAML format string containing the schema of the configurations.
 - **worksheet** (String) - (Optional) The sheet name of the excel worksheet
 - **orientation** (String) - (Optional) default horizontal. Valid values are (horizontal,vertical)
+- **filter** (Block) - (Optional) Filter the data
+- **lookup** (Block) - (Optional) Replace data using lookup. Like `vlookup` function in Excel
 
 #### There should only be 1 instance of **csv** or **excel**.  You cannot define both on the same data source
 
-### Filters
+### Filter
 
 Nested `filter` blocks have the following structure:
 - **name** (String) - (Required) The name of the header/column
 - **values** (List) - (Required) The list of valid values to filter
+
+### Lookup
+
+Nested `lookup` blocks have the following structure:
+- **column** (String) - (Required) Column name of data you need lookup
+- **worksheet** (String) - (Optional) Worksheet of the reference data. Default value is current worksheet
+- **column_key** (String) - (Required) Colummn name of the lookup key
+- **column_value** (String) - (Required) Column name of the lookup value
 
 ### Output
 

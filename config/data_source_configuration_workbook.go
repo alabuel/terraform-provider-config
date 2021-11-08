@@ -65,6 +65,7 @@ func dataSourceConfigurationWorkbook() *schema.Resource {
 				Optional: true,
 			},
 			"filter": dataSourceFilterSchema(),
+			"lookup": dataSourceLookupSchema(),
 		},
 	}
 }
@@ -84,10 +85,15 @@ func dataSourceConfigurationItemRead(ctx context.Context, d *schema.ResourceData
 	end_column := d.Get("col_end").(string)
 
 	var filters []map[string]interface{}
-
 	// gather all filters
 	if v, ok := d.GetOk("filter"); ok {
 		filters = buildConfigDataSourceFilters(v.(*schema.Set))
+	}
+
+	var lookup []map[string]interface{}
+	// gather all lookups
+	if v, ok := d.GetOk("lookup"); ok {
+		lookup = buildConfigDataSourceLookup(v.(*schema.Set))
 	}
 
 	// set the default configuration item column name
@@ -170,7 +176,7 @@ func dataSourceConfigurationItemRead(ctx context.Context, d *schema.ResourceData
 		mapping := map_yaml.(map[interface{}]interface{})
 
 		// remap all csv headers based on mapping configuration
-		records := reMapData(csv, mapping["config_schema"], filters, col_config_item)
+		records := reMapData(csv, mapping["config_schema"], filters, lookup, excel_file, sheet_name, col_config_item)
 
 		// get the transformed data
 		data := getItemData(records, items, col_config_item)
@@ -389,7 +395,7 @@ func unique(items []string) []string {
 	return list
 }
 
-func reMapData(csv []map[string]string, mapping interface{}, filters []map[string]interface{}, configuration_item string) []map[string]interface{} {
+func reMapData(csv []map[string]string, mapping interface{}, filters []map[string]interface{}, lookup []map[string]interface{}, excel_file string, worksheet string, configuration_item string) []map[string]interface{} {
 	new_csv := make([]map[string]interface{}, len(csv))
 	for key, value := range csv {
 		item_key := ""
@@ -436,7 +442,7 @@ func reMapData(csv []map[string]string, mapping interface{}, filters []map[strin
 				new_value[k] = value[k]
 			} else if strings.HasPrefix(k, "s_") || strings.HasPrefix(k, "string_") {
 				replacer := strings.NewReplacer("s_", "", "string_", "")
-				new_key := replacer.Replace(k)
+				new_key = replacer.Replace(k)
 				if value[k] != "" {
 					new_value[new_key] = value[k]
 				} else {
@@ -444,7 +450,7 @@ func reMapData(csv []map[string]string, mapping interface{}, filters []map[strin
 				}
 			} else if strings.HasPrefix(k, "t_") || strings.HasPrefix(k, "tag_") {
 				replacer := strings.NewReplacer("t_", "", "tag_", "")
-				new_key := strings.Title(replacer.Replace(k))
+				new_key = strings.Title(replacer.Replace(k))
 				if value[k] != "" {
 					new_tag[new_key] = value[k]
 				} else {
@@ -452,7 +458,7 @@ func reMapData(csv []map[string]string, mapping interface{}, filters []map[strin
 				}
 			} else if strings.HasPrefix(k, "n_") || strings.HasPrefix(k, "num_") || strings.HasPrefix(k, "number_") || strings.HasPrefix(k, "numeric_") {
 				replacer := strings.NewReplacer("n_", "", "num_", "", "number_", "", "numeric_", "")
-				new_key := replacer.Replace(k)
+				new_key = replacer.Replace(k)
 				if value[k] != "" {
 					n, _ := strconv.ParseFloat(value[k], 64)
 					new_value[new_key] = n
@@ -461,7 +467,7 @@ func reMapData(csv []map[string]string, mapping interface{}, filters []map[strin
 				}
 			} else if strings.HasPrefix(k, "b_") || strings.HasPrefix(k, "bool_") || strings.HasPrefix(k, "boolean_") {
 				replacer := strings.NewReplacer("b_", "", "bool_", "", "boolean_", "")
-				new_key := replacer.Replace(k)
+				new_key = replacer.Replace(k)
 				if value[k] != "" {
 					val, _ := strconv.ParseBool(value[k])
 					new_value[new_key] = val
@@ -470,7 +476,7 @@ func reMapData(csv []map[string]string, mapping interface{}, filters []map[strin
 				}
 			} else if strings.HasPrefix(k, "l_") || strings.HasPrefix(k, "list_") {
 				replacer := strings.NewReplacer("l_", "", "list_", "")
-				new_key := replacer.Replace(k)
+				new_key = replacer.Replace(k)
 				if value[k] != "" {
 					new_value[new_key] = strings.Split(value[k], ",")
 				} else {
@@ -478,7 +484,7 @@ func reMapData(csv []map[string]string, mapping interface{}, filters []map[strin
 				}
 			} else if strings.HasPrefix(k, "m_") || strings.HasPrefix(k, "map_") || strings.HasPrefix(k, "h_") || strings.HasPrefix(k, "hash_") {
 				replacer := strings.NewReplacer("m_", "", "map_", "", "h_", "", "hash_", "")
-				new_key := replacer.Replace(k)
+				new_key = replacer.Replace(k)
 				if value[k] != "" {
 					vlist := strings.Split(value[k], ",")
 					vmap := make(map[string]string)
@@ -491,7 +497,30 @@ func reMapData(csv []map[string]string, mapping interface{}, filters []map[strin
 					new_value[new_key] = map[string]string{}
 				}
 			} else {
+				new_key = k
 				new_value[k] = value[k]
+			}
+
+			// get lookup value
+			if lookup != nil && checkLookupValue(lookup, new_key) {
+				if strings.Contains(value[new_key], ",") {
+					lkvals := strings.Split(value[new_key], ",")
+					for idx, vl := range lkvals {
+						lookup_value, err := getLookupValue(lookup, excel_file, worksheet, new_key, vl)
+						if err == nil && lookup_value != "" {
+							if idx == 0 {
+								new_value[new_key] = lookup_value
+							} else {
+								new_value[new_key] = new_value[new_key].(string) + "," + lookup_value
+							}
+						}
+					}
+				} else {
+					lookup_value, err := getLookupValue(lookup, excel_file, worksheet, new_key, value[new_key])
+					if err == nil && lookup_value != "" {
+						new_value[new_key] = lookup_value
+					}
+				}
 			}
 
 			// check if value included in filter

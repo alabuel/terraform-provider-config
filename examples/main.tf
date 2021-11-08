@@ -1,8 +1,8 @@
 terraform {
   required_providers {
     config = {
-      version = "0.1.6"
-      source = "alabuel/config"
+      version = "0.2.1"
+      source = "aa/test/config"
     }
   }
 }
@@ -29,8 +29,28 @@ data "config_workbook" "excel" {
 data "config_workbook" "vexcel" {
   excel = "files/data.xlsx"
   worksheet = "Vert"
-  type = "vertical"
+  orientation = "vertical"
   configuration_item = "my_vertical"
+}
+
+data "config_workbook" "lkexcel" {
+  excel = "files/event.xlsx"
+  worksheet = "cloudwatch_event_rule"
+  configuration_item = "cloudwatch_event_rule"
+
+  lookup {
+    column = "command"
+    worksheet = "event_target"
+    key_column = "name"
+    value_column = "script"
+  }
+
+  lookup {
+    column = "dependents"
+    worksheet = "event_target"
+    key_column = "name"
+    value_column = "script"
+  }
 }
 
 output "horiz" {
@@ -39,4 +59,8 @@ output "horiz" {
 
 output "vert" {
   value = jsondecode(data.config_workbook.vexcel.json)
+}
+
+output "lookup" {
+  value = jsondecode(data.config_workbook.lkexcel.json)
 }
