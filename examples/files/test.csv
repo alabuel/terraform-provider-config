@@ -1,4 +1,4 @@
-configuratio_item,attr1,attr2,attr3,attr4,attr5,t_environment,t_purpose,l_list,b_bool,num_mynumber
+configuration_item,attr1,attr2,attr3,attr4,attr5,t_environment,t_purpose,l_list,b_bool,num_mynumber
 config_item_1,item_name1,"1,3,4",1,"a=1,x=3",100,dev,p1,,,3.14
 config_item_1,item_name2,2,2,b=2,200,dev,p2,,,4.155
 config_item_2,config_name,web,,,,,,"1,2,3,4",1,12345

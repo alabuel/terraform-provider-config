@@ -2,16 +2,12 @@ package config
 
 import (
 	"context"
-	"encoding/csv"
 	"encoding/json"
 	"fmt"
-	"io"
 	"reflect"
 	"strconv"
 	"strings"
 	"time"
-
-	"gopkg.in/yaml.v2"
 
 	"github.com/360EntSecGroup-Skylar/excelize/v2"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -39,9 +35,18 @@ func dataSourceConfigurationWorkbook() *schema.Resource {
 				Type:     schema.TypeString,
 				Optional: true,
 			},
+			"password": {
+				Type:     schema.TypeString,
+				Optional: true,
+			},
 			"worksheet": {
 				Type:     schema.TypeString,
 				Optional: true,
+			},
+			"headers": {
+				Type:     schema.TypeList,
+				Optional: true,
+				Elem:     &schema.Schema{Type: schema.TypeString},
 			},
 			"orientation": {
 				Type:     schema.TypeString,
@@ -79,7 +84,9 @@ func dataSourceConfigurationItemRead(ctx context.Context, d *schema.ResourceData
 	configuration_item := d.Get("configuration_item").(string)
 	col_config_item := d.Get("col_config_item").(string)
 	excel_file := d.Get("excel").(string)
+	excel_pass := d.Get("password").(string)
 	sheet_name := d.Get("worksheet").(string)
+	sheet_headers := d.Get("headers").([]interface{})
 	orientation := d.Get("orientation").(string)
 	start_column := d.Get("col_start").(string)
 	end_column := d.Get("col_end").(string)
@@ -93,7 +100,11 @@ func dataSourceConfigurationItemRead(ctx context.Context, d *schema.ResourceData
 	var lookup []map[string]interface{}
 	// gather all lookups
 	if v, ok := d.GetOk("lookup"); ok {
-		lookup = buildConfigDataSourceLookup(v.(*schema.Set))
+		lkp, err := buildConfigDataSourceLookup(v.(*schema.Set))
+		if err != nil {
+			return diag.FromErr(err)
+		}
+		lookup = lkp
 	}
 
 	// set the default configuration item column name
@@ -141,7 +152,7 @@ func dataSourceConfigurationItemRead(ctx context.Context, d *schema.ResourceData
 
 	// check if excel is being used
 	if excel_file != "" {
-		csvstring, err := excelToCSV(excel_file, sheet_name, start_column, end_column, configuration_item, col_config_item, orientation)
+		csvstring, err := excelToCSV(excel_file, excel_pass, sheet_name, sheet_headers, start_column, end_column, configuration_item, col_config_item, orientation)
 		if err != nil {
 			return diag.FromErr(fmt.Errorf(fmt.Sprintf("%v", csvstring)))
 		}
@@ -176,7 +187,7 @@ func dataSourceConfigurationItemRead(ctx context.Context, d *schema.ResourceData
 		mapping := map_yaml.(map[interface{}]interface{})
 
 		// remap all csv headers based on mapping configuration
-		records := reMapData(csv, mapping["config_schema"], filters, lookup, excel_file, sheet_name, col_config_item)
+		records := reMapData(csv, mapping["config_schema"], filters, lookup, excel_file, excel_pass, sheet_name, col_config_item)
 
 		// get the transformed data
 		data := getItemData(records, items, col_config_item)
@@ -200,7 +211,7 @@ func dataSourceConfigurationItemRead(ctx context.Context, d *schema.ResourceData
 	return diags
 }
 
-func excelToCSV(excel_file string, sheet_name string, start_column string, end_column string, configuration_item string, col_config_item string, orientation string) (string, error) {
+func excelToCSV(excel_file string, excel_pass string, sheet_name string, sheet_headers []interface{}, start_column string, end_column string, configuration_item string, col_config_item string, orientation string) (string, error) {
 	var row_arr = []string{
 		"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z",
 		"AA", "AB", "AC", "AD", "AE", "AF", "AG", "AH", "AI", "AJ", "AK", "AL", "AM", "AN", "AO", "AP", "AQ", "AR", "AS", "AT", "AU", "AV", "AW", "AX", "AY", "AZ",
@@ -221,7 +232,7 @@ func excelToCSV(excel_file string, sheet_name string, start_column string, end_c
 	}
 	var csv = []string{}
 
-	f, err := excelize.OpenFile(excel_file)
+	f, err := excelize.OpenFile(excel_file, excelize.Options{Password: excel_pass})
 	if err != nil {
 		return "", err
 	}
@@ -261,11 +272,21 @@ func excelToCSV(excel_file string, sheet_name string, start_column string, end_c
 					if i >= len(row) {
 						sb.WriteString("")
 					} else {
-						sb.WriteString("\"" + row[i] + "\"")
+						// replace with supplied header
+						if idx == 0 && i > min {
+							if len(sheet_headers) > 0 && i <= len(sheet_headers) {
+								sb.WriteString("\"" + sheet_headers[i-1].(string) + "\"")
+							} else {
+								sb.WriteString("\"" + row[i] + "\"")
+							}
+						} else {
+							sb.WriteString("\"" + row[i] + "\"")
+						}
 					}
 					if (i < row_len-1) && (i < max) {
 						sb.WriteString(",")
 					}
+
 				}
 			}
 
@@ -395,7 +416,7 @@ func unique(items []string) []string {
 	return list
 }
 
-func reMapData(csv []map[string]string, mapping interface{}, filters []map[string]interface{}, lookup []map[string]interface{}, excel_file string, worksheet string, configuration_item string) []map[string]interface{} {
+func reMapData(csv []map[string]string, mapping interface{}, filters []map[string]interface{}, lookup []map[string]interface{}, excel_file string, excel_pass string, worksheet string, configuration_item string) []map[string]interface{} {
 	new_csv := make([]map[string]interface{}, len(csv))
 	for key, value := range csv {
 		item_key := ""
@@ -506,7 +527,7 @@ func reMapData(csv []map[string]string, mapping interface{}, filters []map[strin
 				if strings.Contains(value[new_key], ",") {
 					lkvals := strings.Split(value[new_key], ",")
 					for idx, vl := range lkvals {
-						lookup_value, err := getLookupValue(lookup, excel_file, worksheet, new_key, vl)
+						lookup_value, err := getLookupValue(lookup, excel_file, excel_pass, worksheet, new_key, vl)
 						if err == nil && lookup_value != "" {
 							if idx == 0 {
 								new_value[new_key] = lookup_value
@@ -516,7 +537,7 @@ func reMapData(csv []map[string]string, mapping interface{}, filters []map[strin
 						}
 					}
 				} else {
-					lookup_value, err := getLookupValue(lookup, excel_file, worksheet, new_key, value[new_key])
+					lookup_value, err := getLookupValue(lookup, excel_file, excel_pass, worksheet, new_key, value[new_key])
 					if err == nil && lookup_value != "" {
 						new_value[new_key] = lookup_value
 					}
@@ -603,44 +624,4 @@ func createDefaultMapping(items []string, csv []map[string]string, configuration
 	mapping["config_schema"] = item_map
 
 	return mapping, nil
-}
-
-func stringToInterface(s string) (interface{}, error) {
-	var v interface{}
-
-	// Try if the string is yaml
-	err := yaml.Unmarshal([]byte(s), &v)
-	if err != nil {
-		// Try if the string is json
-		err = json.Unmarshal([]byte(s), &v)
-		if err != nil {
-			return nil, fmt.Errorf("unable to parse string using yaml or json")
-		}
-	}
-	return v, nil
-}
-
-func stringToMap(s string) ([]map[string]string, error) {
-	r := csv.NewReader(strings.NewReader(s))
-	rows := []map[string]string{}
-	var header []string
-	for {
-		record, err := r.Read()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return nil, err
-		}
-		if header == nil {
-			header = record
-		} else {
-			dict := map[string]string{}
-			for i := range header {
-				dict[header[i]] = record[i]
-			}
-			rows = append(rows, dict)
-		}
-	}
-	return rows, nil
 }

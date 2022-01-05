@@ -2,7 +2,7 @@ TEST?=$$(go list ./... | grep -v 'vendor')
 HOSTNAME=aa
 NAMESPACE=test
 NAME=config
-VERSION=0.2.1
+VERSION=0.2.2
 BINARY=terraform-provider-${NAME}
 OS_ARCH=linux_amd64
 
