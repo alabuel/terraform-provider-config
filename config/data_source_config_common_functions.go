@@ -156,6 +156,7 @@ func getLookupValue(lookup []map[string]interface{}, default_excel string, defau
 	var lookupValue = ""
 	for _, lv := range lookup {
 		if lv["Column"].(string) == key {
+			// added json and yaml as source lookup
 			if lv["Json"] != nil {
 				jd, _ := stringToInterface(lv["Json"].(string))
 				jsondata := jd.(map[interface{}]interface{})
@@ -175,9 +176,11 @@ func getLookupValue(lookup []map[string]interface{}, default_excel string, defau
 			} else if lv["Worksheet"] != nil {
 				excel_file := default_excel
 				excel_pass := default_password
+				// added external excel file as source lookup
 				if lv["Excel"] != nil {
 					excel_file = lv["Excel"].(string)
 				}
+				// added property for password protected Excel worksheet
 				if lv["Password"] != nil {
 					excel_pass = lv["Password"].(string)
 				}
