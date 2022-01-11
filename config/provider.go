@@ -8,7 +8,9 @@ func Provider() *schema.Provider {
 	return &schema.Provider{
 		ResourcesMap: map[string]*schema.Resource{},
 		DataSourcesMap: map[string]*schema.Resource{
-			"config_workbook": dataSourceConfigurationWorkbook(),
+			"config_workbook":    dataSourceConfigurationWorkbook(),
+			"config_ini":         dataSourceIni(),
+			"config_restapi_get": dataSourceRestApiGet(),
 		},
 	}
 }

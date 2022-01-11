@@ -61,11 +61,16 @@ data "config_workbook" "lookup" {
   }
 
   lookup {
-    yaml = file("files/event.yaml")
+    ini = file("files/event.ini")
+    section = "event"
     column = "dependents"
     key_column = "name"
     value_column = "script"
   }
+}
+
+data "config_ini" "ini" {
+  ini = file("files/event.ini")
 }
 
 # output "horiz" {
@@ -91,3 +96,7 @@ output "lookup" {
 # output "vm" {
 #   value = jsondecode(data.config_workbook.vm.json)
 # }
+
+output "ini" {
+  value = jsondecode(data.config_ini.ini.json)
+}

@@ -14,6 +14,24 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
+type ConfigurationWorkbook struct {
+	csv_string         string
+	config_schema      string
+	excel_file         string
+	excel_pass         string
+	sheet_name         string
+	sheet_headers      []interface{}
+	start_column       string
+	end_column         string
+	configuration_item string
+	col_config_item    string
+	orientation        string
+	filters            []map[string]interface{}
+	lookup             []map[string]interface{}
+	mapping            interface{}
+	csv                []map[string]string
+}
+
 func dataSourceConfigurationWorkbook() *schema.Resource {
 	return &schema.Resource{
 		ReadContext: dataSourceConfigurationItemRead,
@@ -78,119 +96,118 @@ func dataSourceConfigurationWorkbook() *schema.Resource {
 func dataSourceConfigurationItemRead(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	var diags diag.Diagnostics
 
-	// get all arguments passed to the resource
-	csv_string := d.Get("csv").(string)
-	config_schema := d.Get("schema").(string)
-	configuration_item := d.Get("configuration_item").(string)
-	col_config_item := d.Get("col_config_item").(string)
-	excel_file := d.Get("excel").(string)
-	excel_pass := d.Get("password").(string)
-	sheet_name := d.Get("worksheet").(string)
-	sheet_headers := d.Get("headers").([]interface{})
-	orientation := d.Get("orientation").(string)
-	start_column := d.Get("col_start").(string)
-	end_column := d.Get("col_end").(string)
+	params := new(ConfigurationWorkbook)
+	params.csv_string = d.Get("csv").(string)
+	params.config_schema = d.Get("schema").(string)
+	params.configuration_item = d.Get("configuration_item").(string)
+	params.col_config_item = d.Get("col_config_item").(string)
+	params.excel_file = d.Get("excel").(string)
+	params.excel_pass = d.Get("password").(string)
+	params.sheet_name = d.Get("worksheet").(string)
+	params.sheet_headers = d.Get("headers").([]interface{})
+	params.orientation = d.Get("orientation").(string)
+	params.start_column = d.Get("col_start").(string)
+	params.end_column = d.Get("col_end").(string)
 
-	var filters []map[string]interface{}
 	// gather all filters
 	if v, ok := d.GetOk("filter"); ok {
-		filters = buildConfigDataSourceFilters(v.(*schema.Set))
+		params.filters = buildConfigDataSourceFilters(v.(*schema.Set))
 	}
 
-	var lookup []map[string]interface{}
 	// gather all lookups
 	if v, ok := d.GetOk("lookup"); ok {
-		lkp, err := buildConfigDataSourceLookup(v.(*schema.Set))
+		var err error
+		params.lookup, err = buildConfigDataSourceLookup(v.(*schema.Set))
 		if err != nil {
 			return diag.FromErr(err)
 		}
-		lookup = lkp
 	}
 
 	// set the default configuration item column name
-	if col_config_item == "" {
-		col_config_item = "configuration_item"
+	if params.col_config_item == "" {
+		params.col_config_item = "configuration_item"
 	}
 
 	// set default value for configuration_item
-	if configuration_item == "" && sheet_name != "" {
-		configuration_item = sheet_name
+	if params.configuration_item == "" && params.sheet_name != "" {
+		params.configuration_item = params.sheet_name
 	}
 
 	// ###### Start Validations ######
 
 	// make sure csv or excel is used
-	if csv_string == "" && excel_file == "" {
+	if params.csv_string == "" && params.excel_file == "" {
 		return diag.FromErr(fmt.Errorf(fmt.Sprintf("%v", "Must use csv or excel on the resource")))
 	}
 
 	// make sure csv and excel is not on the same resource
-	if csv_string != "" && excel_file != "" {
+	if params.csv_string != "" && params.excel_file != "" {
 		return diag.FromErr(fmt.Errorf(fmt.Sprintf("%v", "Cannot use csv and excel on the same resource")))
 	}
 
-	orientation = strings.ToLower(orientation)
+	params.orientation = strings.ToLower(params.orientation)
 	valid_vertical_orientation := []string{"vertical", "vert", "v"}
 	valid_horizontal_orientation := []string{"horizontal", "horiz", "h"}
-	if stringInList(orientation, valid_vertical_orientation) {
-		orientation = "vertical"
-	} else if stringInList(orientation, valid_horizontal_orientation) {
-		orientation = "horizontal"
+	if stringInList(params.orientation, valid_vertical_orientation) {
+		params.orientation = "vertical"
+	} else if stringInList(params.orientation, valid_horizontal_orientation) {
+		params.orientation = "horizontal"
 	} else {
 		return diag.FromErr(fmt.Errorf(fmt.Sprintf("%v", "Invalid type. Valid values are horizontal,vertical")))
 	}
 
-	if orientation == "vertical" && configuration_item == "" {
+	if params.orientation == "vertical" && params.configuration_item == "" {
 		return diag.FromErr(fmt.Errorf(fmt.Sprintf("%v", "configuration_item is required if type is vertical")))
 	}
 
-	if orientation == "vertical" && csv_string != "" {
+	if params.orientation == "vertical" && params.csv_string != "" {
 		return diag.FromErr(fmt.Errorf(fmt.Sprintf("%v", "vertical orientation is only valid for excel")))
 	}
 
 	// ###### End Validations ######
 
 	// check if excel is being used
-	if excel_file != "" {
-		csvstring, err := excelToCSV(excel_file, excel_pass, sheet_name, sheet_headers, start_column, end_column, configuration_item, col_config_item, orientation)
+	if params.excel_file != "" {
+		csvstring, err := excelToCSV(params)
 		if err != nil {
 			return diag.FromErr(fmt.Errorf(fmt.Sprintf("%v", csvstring)))
 		}
-		csv_string = csvstring
+		params.csv_string = csvstring
 		// return diag.FromErr(fmt.Errorf(fmt.Sprintf("%v", csvstring)))
 	}
 
-	if csv_string != "" {
+	if params.csv_string != "" {
 		// convert the csv to map
-		// var csv []map[string]string
-		csv, err := stringToMap(csv_string)
+		csv, err := stringToMap(params.csv_string)
 		if err != nil {
 			return diag.FromErr(err)
 		}
+		params.csv = csv
 
 		// get all unique configuration items
-		items := unique(getConfigurationItems(csv, col_config_item))
+		items := unique(getConfigurationItems(params.csv, params.col_config_item))
 
 		// convert the schema to map
 		var map_yaml interface{}
-		if config_schema != "" {
-			map_yaml, err = stringToInterface(config_schema)
+		if params.config_schema != "" {
+			map_yaml, err = stringToInterface(params.config_schema)
 			if err != nil {
 				return diag.FromErr(err)
 			}
 		} else {
-			map_yaml, err = createDefaultMapping(items, csv, col_config_item)
+			map_yaml, err = createDefaultMapping(items, params.csv, params.col_config_item)
 			if err != nil {
 				return diag.FromErr(err)
 			}
 		}
 		mapping := map_yaml.(map[interface{}]interface{})
+		params.mapping = mapping["config_schema"]
 
 		// remap all csv headers based on mapping configuration
-		records := reMapData(csv, mapping["config_schema"], filters, lookup, excel_file, excel_pass, sheet_name, col_config_item)
+		records := reMapData(params)
 
 		// get the transformed data
-		data := getItemData(records, items, col_config_item)
+		data := getItemData(records, items, params.col_config_item)
 
 		// set the data to the attribute json
 		if err := d.Set("json", data); err != nil {
@@ -198,10 +215,10 @@ func dataSourceConfigurationItemRead(ctx context.Context, d *schema.ResourceData
 		}
 	} else {
 		// set the data to the attribute json
-		if configuration_item == "" {
-			configuration_item = sheet_name
+		if params.configuration_item == "" {
+			params.configuration_item = params.sheet_name
 		}
-		if err := d.Set("json", "{\""+configuration_item+"\": []}"); err != nil {
+		if err := d.Set("json", "{\""+params.configuration_item+"\": []}"); err != nil {
 			return diag.FromErr(err)
 		}
 	}
@@ -211,34 +228,34 @@ func dataSourceConfigurationItemRead(ctx context.Context, d *schema.ResourceData
 	return diags
 }
 
-func excelToCSV(excel_file string, excel_pass string, sheet_name string, sheet_headers []interface{}, start_column string, end_column string, configuration_item string, col_config_item string, orientation string) (string, error) {
+func excelToCSV(args *ConfigurationWorkbook) (string, error) {
 	var row_arr = []string{
 		"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z",
 		"AA", "AB", "AC", "AD", "AE", "AF", "AG", "AH", "AI", "AJ", "AK", "AL", "AM", "AN", "AO", "AP", "AQ", "AR", "AS", "AT", "AU", "AV", "AW", "AX", "AY", "AZ",
 	}
 	min := 0
 	max := len(row_arr) - 1
-	if start_column != "" {
-		min = sliceIndex(row_arr, start_column)
+	if args.start_column != "" {
+		min = sliceIndex(row_arr, args.start_column)
 		if min == -1 {
 			min = 0
 		}
 	}
-	if end_column != "" {
-		max = sliceIndex(row_arr, end_column)
+	if args.end_column != "" {
+		max = sliceIndex(row_arr, args.end_column)
 		if max == -1 {
 			max = len(row_arr) - 1
 		}
 	}
 	var csv = []string{}
 
-	f, err := excelize.OpenFile(excel_file, excelize.Options{Password: excel_pass})
+	f, err := excelize.OpenFile(args.excel_file, excelize.Options{Password: args.excel_pass})
 	if err != nil {
 		return "", err
 	}
 
 	// Get all rows
-	rows, err := f.GetRows(sheet_name)
+	rows, err := f.GetRows(args.sheet_name)
 	if err != nil {
 		return "", fmt.Errorf(fmt.Sprintf("%v", rows))
 	}
@@ -246,12 +263,12 @@ func excelToCSV(excel_file string, excel_pass string, sheet_name string, sheet_h
 	// get the number of columns
 	row_len := len(rows[0])
 
-	if orientation == "horizontal" {
+	if args.orientation == "horizontal" {
 		// check if configuration item is in the column names
 		config_item_exist := false
 		for i := 0; i < row_len; i++ {
 			if (i >= min) && (i <= max) && (i < row_len) {
-				if (rows[0][i] == "configuration_item") || (rows[0][i] == col_config_item) {
+				if (rows[0][i] == "configuration_item") || (rows[0][i] == args.col_config_item) {
 					config_item_exist = true
 				}
 			}
@@ -265,7 +282,7 @@ func excelToCSV(excel_file string, excel_pass string, sheet_name string, sheet_h
 						if idx == 0 && i == min {
 							sb.WriteString("\"configuration_item\",")
 						} else if idx > 0 && i == min {
-							sb.WriteString("\"" + configuration_item + "\",")
+							sb.WriteString("\"" + args.configuration_item + "\",")
 						}
 					}
 
@@ -274,8 +291,8 @@ func excelToCSV(excel_file string, excel_pass string, sheet_name string, sheet_h
 					} else {
 						// replace with supplied header
 						if idx == 0 && i > min {
-							if len(sheet_headers) > 0 && i <= len(sheet_headers) {
-								sb.WriteString("\"" + sheet_headers[i-1].(string) + "\"")
+							if len(args.sheet_headers) > 0 && i <= len(args.sheet_headers) {
+								sb.WriteString("\"" + args.sheet_headers[i-1].(string) + "\"")
 							} else {
 								sb.WriteString("\"" + row[i] + "\"")
 							}
@@ -320,7 +337,7 @@ func excelToCSV(excel_file string, excel_pass string, sheet_name string, sheet_h
 		csv = append(csv, sb.String())
 		for i := 1; i < maxcol; i++ {
 			sb.Reset()
-			sb.WriteString("\"" + configuration_item + "\",")
+			sb.WriteString("\"" + args.configuration_item + "\",")
 			for idx, row := range rows {
 				if i > len(row)-1 {
 					if idx < len(rows)-1 {
@@ -416,12 +433,12 @@ func unique(items []string) []string {
 	return list
 }
 
-func reMapData(csv []map[string]string, mapping interface{}, filters []map[string]interface{}, lookup []map[string]interface{}, excel_file string, excel_pass string, worksheet string, configuration_item string) []map[string]interface{} {
-	new_csv := make([]map[string]interface{}, len(csv))
-	for key, value := range csv {
+func reMapData(args *ConfigurationWorkbook) []map[string]interface{} {
+	new_csv := make([]map[string]interface{}, len(args.csv))
+	for key, value := range args.csv {
 		item_key := ""
 		for k, v := range value {
-			if k == configuration_item {
+			if k == args.configuration_item {
 				item_key = v
 			}
 		}
@@ -433,7 +450,7 @@ func reMapData(csv []map[string]string, mapping interface{}, filters []map[strin
 		for k, v := range value {
 			_ = v
 			if strings.HasPrefix(k, "attr") {
-				new_key, new_type = getMapValue(mapping, item_key, k)
+				new_key, new_type = getMapValue(args.mapping, item_key, k)
 				if new_key != "" {
 					if new_type == "string" {
 						new_value[new_key] = value[k]
@@ -459,7 +476,7 @@ func reMapData(csv []map[string]string, mapping interface{}, filters []map[strin
 						new_value[new_key] = value[k]
 					}
 				}
-			} else if k == configuration_item {
+			} else if k == args.configuration_item {
 				new_value[k] = value[k]
 			} else if strings.HasPrefix(k, "s_") || strings.HasPrefix(k, "string_") {
 				replacer := strings.NewReplacer("s_", "", "string_", "")
@@ -523,11 +540,11 @@ func reMapData(csv []map[string]string, mapping interface{}, filters []map[strin
 			}
 
 			// get lookup value
-			if lookup != nil && checkLookupValue(lookup, new_key) {
+			if args.lookup != nil && checkLookupValue(args.lookup, new_key) {
 				if strings.Contains(value[new_key], ",") {
 					lkvals := strings.Split(value[new_key], ",")
 					for idx, vl := range lkvals {
-						lookup_value, err := getLookupValue(lookup, excel_file, excel_pass, worksheet, new_key, vl)
+						lookup_value, err := getLookupValue(args.lookup, args.excel_file, args.excel_pass, args.sheet_name, new_key, vl)
 						if err == nil && lookup_value != "" {
 							if idx == 0 {
 								new_value[new_key] = lookup_value
@@ -537,7 +554,7 @@ func reMapData(csv []map[string]string, mapping interface{}, filters []map[strin
 						}
 					}
 				} else {
-					lookup_value, err := getLookupValue(lookup, excel_file, excel_pass, worksheet, new_key, value[new_key])
+					lookup_value, err := getLookupValue(args.lookup, args.excel_file, args.excel_pass, args.sheet_name, new_key, value[new_key])
 					if err == nil && lookup_value != "" {
 						new_value[new_key] = lookup_value
 					}
@@ -545,12 +562,12 @@ func reMapData(csv []map[string]string, mapping interface{}, filters []map[strin
 			}
 
 			// check if value included in filter
-			if len(filters) > 0 {
+			if len(args.filters) > 0 {
 				if !include_value {
-					include_value = checkFiltersForItem(filters, k, value[k])
+					include_value = checkFiltersForItem(args.filters, k, value[k])
 				}
 				if !include_value {
-					include_value = checkFiltersForItem(filters, new_key, value[k])
+					include_value = checkFiltersForItem(args.filters, new_key, value[k])
 				}
 			} else {
 				include_value = true
