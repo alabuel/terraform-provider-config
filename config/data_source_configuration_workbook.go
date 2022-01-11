@@ -254,10 +254,19 @@ func excelToCSV(args *ConfigurationWorkbook) (string, error) {
 		return "", err
 	}
 
+	// check if sheet is existing in the workbook
+	sheetId := f.GetSheetIndex(args.sheet_name)
+	if sheetId == -1 {
+		return "", fmt.Errorf("sheet name not found")
+	}
+
 	// Get all rows
 	rows, err := f.GetRows(args.sheet_name)
 	if err != nil {
 		return "", fmt.Errorf(fmt.Sprintf("%v", rows))
+	}
+	if len(rows) == 0 {
+		return "", fmt.Errorf("sheet does not have data")
 	}
 
 	// get the number of columns
