@@ -8,16 +8,38 @@ description: |-
 
 # config Provider
 
+The config Provider gives Terraform the ability to work with Excel worksheets, INI configuration files, and API response data.
+
+Use the navigation on the left to read about the various data sources supported by the provider.
+
+## Example Usage
+
+The following example demonstrates a current basic usage of the provider.
+
 ```hcl
 terraform {
   required_providers {
     config = {
-      version = "x.x.x"
       source = "alabuel/config"
+      version = "x.x.x"  # supply the version
     }
   }
 }
 
 provider "config" {}
+
+data "config_workbook" "excel" {
+  excel = "filename.xlsx"
+  worksheet = "Sheet1"
+}
+
+data "config_restapi_get "apidata" {
+  uri = "http://localhost:3000/posts"
+}
+
+data "config_ini" "cfg" {
+  ini = file("configuration.ini")
+}
 ```
 
+See the sidebar for usage information on all the data sources, which will have examples specific to their own use cases.

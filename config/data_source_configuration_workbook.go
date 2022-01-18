@@ -170,7 +170,7 @@ func dataSourceConfigurationItemRead(ctx context.Context, d *schema.ResourceData
 	if params.excel_file != "" {
 		csvstring, err := excelToCSV(params)
 		if err != nil {
-			return diag.FromErr(fmt.Errorf(fmt.Sprintf("%v", csvstring)))
+			return diag.FromErr(err)
 		}
 		params.csv_string = csvstring
 		// return diag.FromErr(fmt.Errorf(fmt.Sprintf("%v", csvstring)))
@@ -256,17 +256,17 @@ func excelToCSV(args *ConfigurationWorkbook) (string, error) {
 
 	// check if sheet is existing in the workbook
 	sheetId := f.GetSheetIndex(args.sheet_name)
-	if sheetId == -1 {
-		return "", fmt.Errorf("sheet name not found")
+	if sheetId < 0 {
+		return "", fmt.Errorf("worksheet \"%s\" not found", args.sheet_name)
 	}
 
 	// Get all rows
 	rows, err := f.GetRows(args.sheet_name)
 	if err != nil {
-		return "", fmt.Errorf(fmt.Sprintf("%v", rows))
+		return "", err
 	}
-	if len(rows) == 0 {
-		return "", fmt.Errorf("sheet does not have data")
+	if len(rows) <= 0 {
+		return "", fmt.Errorf("worksheet \"%s\" does not have data", args.sheet_name)
 	}
 
 	// get the number of columns

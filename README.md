@@ -1,199 +1,85 @@
-# Terraform Configuration Workbook Provider
+config Provider
+==================
 
-This is the repository for the Terraform Configuration Workbook Provider which you can use to parse a CSV file or an Excel file into a list of maps.
+- Website: https://registry.terraform.io
+- Documentation: https://registry.terraform.io/providers/alabuel/config/latest/docs
 
-You can also provide a schema to set the key names of each map for your configurations.
+Introduction
+------------
 
-# Using the Provider
+This is a Terraform provider for the following:
+- Read Excel file as a data source
+- Read INI configuration file as a data source
+- Get response from API servers as a data source
 
-## Configuring the Provider
+Requirements
+------------
+
+* [Terraform 0.13 or above](https://www.terraform.io/downloads.html)
+* [Go Language 1.16.4 or above](https://golang.org/dl)
+
+
+Using the Provider
+------------
+
+See the [config documentation](https://registry.terraform.io/providers/alabuel/config/latest/docs)
+
+See config data source examples [here](examples/README.md)
+
+## Execution
+These are the Terraform commands that can be used for the config plugin:
+* `terraform init` - The init command is used to initialize a working directory containing Terraform configuration files.
+* `terraform plan` - Plan command shows plan for resources like how many resources will be provisioned and how many will be destroyed.
+* `terraform apply` - apply is responsible to execute actual calls to provision resources.
+* `terraform refresh` - By using the refresh command you can check the status of the request.
+* `terraform show` - show will set a console output for resource configuration and request status.
+* `terraform destroy` - destroy command will destroy all the  resources present in terraform configuration file.
+
+Navigate to the location where `main.tf` and binary are placed and use the above commands as needed.
+
+Upgrading the provider
+----------------------
+
+The config provider doesn't upgrade automatically once you've started using it. After a new release you can run 
+
+```bash
+terraform init -upgrade
+```
+
+to upgrade to the latest stable version of the config provider. See the [Terraform website](https://www.terraform.io/docs/configuration/providers.html#provider-versions)
+for more information on provider upgrades, and how to set version constraints on your provider.
+
+
+### A sample main.tf is as follows
 
 ```hcl
 terraform {
   required_providers {
     config = {
       source = "alabuel/config"
-      version = "0.1.1"
+      version = "0.2.4"
     }
   }
 }
 
 provider "config" {}
-```
 
-### Example - Using a CSV
-
-```hcl
-data "config_workbook "csv" {
-  csv = <<-EOT
-  configuration_item,attr1,attr2,attr3
-  vpc,my_vpc,1,"10.0.0.0/16"
-  EOT
-}
-
-# reading from a csv file
-data "config_workbook" "csv_file" {
-  csv = file("filename.csv")
-}
-```
-
-### Example - Using an Excel file
-
-```hcl
+# reading Excel worksheet
+# ------------------------
 data "config_workbook" "excel" {
   excel = "filename.xlsx"
   worksheet = "Sheet1"
 }
-```
 
-### Example - Using a CSV with a schema
-
-```hcl
-data "config_workbook" "csv_using_yaml" {
-  csv = file("filename.csv")
-  schema = file("schema.yaml")
+# getting api response
+# -----------------------
+data "config_restapi_get "apidata" {
+  uri = "http://localhost:3000/posts"
 }
 
-data "config_workbook" "csv_using_json" {
-  csv = file("filename.csv")
-  schema = file("schema.json")
-}
-```
-
-### Example - Using an Excel with a schema
-```hcl
-data "config_workbook" "excel_using_yaml" {
-  excel = "filename.xlsx"
-  worksheet = "Sheet1"
-  schema = file("schema.yaml")
-}
-
-data "config_workbook" "excel_using_json" {
-  excel = "filename.xlsx"
-  worksheet = "Sheet1"
-  schema = file("schema.json")
-}
-```
-
-### Schema format - Example 1
-```yaml
-# you can set the attribute types
-schema_config:
-  vpc:
-    attr1:
-      name: name
-      type: string
-    attr2:
-      name: create
-      type: bool
-    attr3:
-      name: cidr_block
-      type: string
-
-# this format assumes that all attributes are of "string" types
-schema_config:
-  vpc:
-    attr1: name
-    attr2: create
-    attr3: cidr_block
-
-```
-
-### Schema format - Example 3
-```json
-// you can set the attribute types
-{
-  "schema_config": {
-    "vpc": {
-      "attr1": {
-        "name": "name",
-        "type": "string"
-      },
-      "attr2": {
-        "name": "create",
-        "type": "bool"
-      },
-      "attr3": {
-        "name": "cidr_block",
-        "type": "string"
-      }
-    }
-  }
-} 
-
-// this format assumes that all attributes are of "string" types
-{
-  "schema_config": {
-    "vpc": {
-      "attr1": "name",
-      "attr2": "create",
-      "attr3": "cidr_block"
-    }
-  }
-}
-```
-
-## Valid attribute types
-- string
-- number/numeric
-- bool/boolean
-- map
-- list
-
-## Attribute naming convention
-1. Should have a column name of "`configuration_item`".  This will identify the item you need to configure
-2. Attributes starting with "`attr`" will be substituted with the correct attribute name using the provided schema.
-3. You can preset the type of the attribute using prefixes.
-    - `s_` or `string_`
-    - `n_` or `num_` or `number_` or `numeric_`
-    - `b_` or `bool_` or `boolean`
-    - `m_` or `map_`
-    - `l_` or `list_`
-    - `t_` or `tag_`
-    Attributes without prefixes will be treated as string.  Boolean values are (1,yes,true = True; 0,no,false = False)
-
-## Example 1
-|configuration_item|attr1|attr2|attr3|
-|------------------|-----|-----|-----|
-|vpc|my_vpc|1|"10.0.0.0/16"|
-
-## Example 2
-|configuration_item|name|b_create|cidr_block|
-|------------------|-----|-----|-----|
-|vpc|my_vpc|1|"10.0.0.0/16"|
-
-### Example 1 and 2 results:
-```json
-{
-  "vpc": [
-    {
-      "name": "my_vpc",
-      "create": true,
-      "cidr_block": "10.0.0.0/16"
-    }
-  ]
-}
-```
-
-## Example 3
-|configuration_item|attr1|attr2|attr3|t_environment|t_alias|t_purpose|
-|------------------|-----|-----|-----|-------------|-------|---------|
-|vpc|my_vpc|1|"10.0.0.0/16"|dev|vpc1|"application vpc"|
-
-### Example 3 results will be:
-```json
-{
-  "vpc": [
-    {
-      "name": "my_vpc",
-      "create": true,
-      "cidr_block": "10.0.0.0/16",
-      "tags": {
-        "Environment": "dev",
-        "Alias": "vpc1",
-        "Purpose": "application vpc"
-      }
-    }
-  ]
+# reading ini configuration file
+# -------------------------------
+data "config_ini" "cfg" {
+  ini = file("configuration.ini")
 }
 ```
