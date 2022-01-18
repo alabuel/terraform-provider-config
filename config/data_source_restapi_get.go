@@ -3,9 +3,11 @@ package config
 import (
 	"context"
 	"encoding/base64"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -20,6 +22,8 @@ type RequestParameters struct {
 	headers  []map[string]interface{}
 	user     string
 	password string
+	method   string
+	payload  string
 }
 
 func dataSourceRestApiGet() *schema.Resource {
@@ -40,6 +44,14 @@ func dataSourceRestApiGet() *schema.Resource {
 			},
 			"param":  dataSourceKeyValueSchema(),
 			"header": dataSourceKeyValueSchema(),
+			"method": {
+				Type:     schema.TypeString,
+				Optional: true,
+			},
+			"payload": {
+				Type:     schema.TypeString,
+				Optional: true,
+			},
 			"response": {
 				Type:     schema.TypeString,
 				Optional: true,
@@ -56,6 +68,13 @@ func dataSourceRestApiRead(ctx context.Context, d *schema.ResourceData, m interf
 	reqparm.uri = d.Get("uri").(string)
 	reqparm.user = d.Get("user").(string)
 	reqparm.password = d.Get("password").(string)
+	reqparm.method = d.Get("method").(string)
+	reqparm.payload = d.Get("payload").(string)
+
+	whiteSpace := regexp.MustCompile(`\s+`)
+	if whiteSpace.Match([]byte(reqparm.uri)) {
+		return diag.FromErr(fmt.Errorf("uri cannot contain whitespace. Got \"%s\"", reqparm.uri))
+	}
 
 	if v, ok := d.GetOk("param"); ok {
 		reqparm.params = buildConfigDataSourceParams(v.(*schema.Set))
@@ -89,7 +108,13 @@ func getRequest(args *RequestParameters) (string, error) {
 	}
 
 	method := "GET"
+	if args.method != "" {
+		method = args.method
+	}
 	payload := strings.NewReader(``)
+	if args.payload != "" {
+		payload = strings.NewReader(args.payload)
+	}
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, payload)
 	if err != nil {
@@ -105,7 +130,7 @@ func getRequest(args *RequestParameters) (string, error) {
 
 	// add headers
 	for _, h := range args.headers {
-		req.Header.Add(h["Key"].(string), h["Value"].(string))
+		req.Header.Set(h["Key"].(string), h["Value"].(string))
 	}
 
 	// Send http request
