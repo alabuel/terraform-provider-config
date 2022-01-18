@@ -32,7 +32,7 @@ data "config_workbook" "excel" {
 
 data "config_workbook" "vexcel" {
   excel = "files/data.xlsx"
-  worksheet = "Vert"
+  worksheet = "Sheet1"
   orientation = "vertical"
   configuration_item = "my_vertical"
 }
