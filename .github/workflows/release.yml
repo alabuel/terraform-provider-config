@@ -25,7 +25,7 @@ jobs:
         name: Unshallow
         run: git fetch --prune --unshallow
       - 
-        name: Install latest Go
+        name: Install Go version 1.16.4
         run: |
           rm -rf /usr/local/go
           wget -c https://dl.google.com/go/go1.16.4.linux-amd64.tar.gz -O - | sudo tar -xz -C /usr/local
