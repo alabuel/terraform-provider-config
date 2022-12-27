@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/360EntSecGroup-Skylar/excelize/v2"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -268,6 +269,9 @@ func excelToCSV(args *ConfigurationWorkbook) (string, error) {
 	if len(rows) <= 0 {
 		return "", fmt.Errorf("worksheet \"%s\" does not have data", args.sheet_name)
 	}
+
+	// delete empty rows or row containing non printable characters including white spaces
+	rows = delete_empty_row(rows)
 
 	// get the number of columns
 	row_len := len(rows[0])
@@ -650,4 +654,35 @@ func createDefaultMapping(items []string, csv []map[string]string, configuration
 	mapping["config_schema"] = item_map
 
 	return mapping, nil
+}
+
+// Remove row that contains empty or row with non printer characters and invisible characters (white spaces)
+func delete_empty_row(s [][]string) [][]string {
+	var r [][]string
+	for _, str := range s {
+		if len(str) != 0 {
+			if is_printable(str) {
+				r = append(r, str)
+			}
+		}
+	}
+	return r
+}
+
+// Check the string array for only printable characters excluding space
+func is_printable(s []string) bool {
+	for _, str := range s {
+		str := strings.TrimSpace(str)
+		str = strings.Map(func(r rune) rune {
+			if unicode.IsPrint(r) && r != ' ' {
+				//Do not count space as well
+				return r
+			}
+			return -1
+		}, str)
+		if len(str) > 0 {
+			return true
+		}
+	}
+	return false
 }
