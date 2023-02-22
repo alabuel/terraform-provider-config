@@ -10,9 +10,9 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/360EntSecGroup-Skylar/excelize/v2"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/xuri/excelize/v2"
 )
 
 type ConfigurationWorkbook struct {
@@ -256,7 +256,10 @@ func excelToCSV(args *ConfigurationWorkbook) (string, error) {
 	}
 
 	// check if sheet is existing in the workbook
-	sheetId := f.GetSheetIndex(args.sheet_name)
+	sheetId, err := f.GetSheetIndex(args.sheet_name)
+	if err != nil {
+		return "", err
+	}
 	if sheetId < 0 {
 		return "", fmt.Errorf("worksheet \"%s\" not found", args.sheet_name)
 	}
