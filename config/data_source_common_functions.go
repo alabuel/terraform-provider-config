@@ -9,8 +9,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/xuri/excelize/v2"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/xuri/excelize/v2"
 	"gopkg.in/yaml.v2"
 )
 
@@ -371,7 +371,7 @@ func iniParser(datastream interface{}) map[string]map[string]interface{} {
 			ini[section] = make(map[string]interface{})
 		} else if data.MatchString(line) {
 			kv := data.FindStringSubmatch(line)
-			ini[section][kv[1]] = kv[2]
+			ini[section][strings.TrimSpace(kv[1])] = strings.TrimSpace(kv[2])
 		}
 	}
 	return ini
