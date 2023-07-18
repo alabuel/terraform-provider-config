@@ -363,7 +363,7 @@ func iniParser(datastream interface{}) map[string]map[string]interface{} {
 
 	scanner := bufio.NewScanner(strings.NewReader(datastream.(string)))
 	ini := make(map[string]map[string]interface{})
-	var section string
+	section := ""
 	for scanner.Scan() {
 		line := scanner.Text()
 		if sect.MatchString(line) {
@@ -371,7 +371,12 @@ func iniParser(datastream interface{}) map[string]map[string]interface{} {
 			ini[section] = make(map[string]interface{})
 		} else if data.MatchString(line) {
 			kv := data.FindStringSubmatch(line)
+			if section == "" {
+				section = "default"
+				ini[section] = make(map[string]interface{})
+			}
 			ini[section][strings.TrimSpace(kv[1])] = strings.TrimSpace(kv[2])
+
 		}
 	}
 	return ini
