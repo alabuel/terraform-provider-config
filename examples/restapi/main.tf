@@ -1,15 +1,15 @@
 terraform {
   required_providers {
     config = {
-      version = "0.2.2"
-      source = "aa/test/config"
+      version = "0.2.8"
+      source = "alabuel/config"
     }
   }
 }
 
 provider "config" {}
 
-data "config_restapi_get" "test" {
+data "config_rest" "test" {
     uri = "http://localhost:3000/posts"
     header {
       key = "Content-Type"
@@ -25,7 +25,7 @@ data "config_restapi_get" "test" {
     }
 }
 
-data "config_restapi_get" "post" {
+data "config_rest" "post" {
   uri = "http://localhost:3000/posts"
   header {
     key = "Content-Type"

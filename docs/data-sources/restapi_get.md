@@ -35,7 +35,7 @@ data "config_restapi_get "general" {
 ### Example - Using with basic authentication credentials
 
 ```terraform
-data "config_restapi_get "general" {
+data "config_rest" "general" {
   uri = "http://localhost:3000/posts"
   user = "user"
   password = "pass"
@@ -46,7 +46,7 @@ data "config_restapi_get "general" {
 locals {
   userpass = "${var.username}:${var.password}"
 }
-data "config_restapi_get "general" {
+data "config_rest" "general" {
   uri = "http://localhost:3000/posts"
   header {
     key = "Authorization"
@@ -57,7 +57,7 @@ data "config_restapi_get "general" {
 
 ### Example - Using with additional headers
 ```terraform
-data "config_restapi_get "general" {
+data "config_rest" "general" {
   uri = "http://localhost:3000/posts"
   header {
     key = "Content-type"
@@ -72,7 +72,7 @@ data "config_restapi_get "general" {
 
 ### Example - Using POST method
 ```terraform
-data "config_restapi_get" "post" {
+data "config_rest" "post" {
   uri = "http://localhost:3000/posts"
   header {
     key = "Content-Type"

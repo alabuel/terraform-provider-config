@@ -33,7 +33,7 @@ data "config_workbook" "excel" {
   worksheet = "Sheet1"
 }
 
-data "config_restapi_get "apidata" {
+data "config_rest" "response_data" {
   uri = "http://localhost:3000/posts"
 }
 

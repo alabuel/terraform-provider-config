@@ -1,28 +1,13 @@
 terraform {
   required_providers {
     config = {
-      version = "0.2.2"
-      source = "aa/test/config"
+      version = "0.2.8"
+      source = "alabuel/config"
     }
   }
 }
 
 provider "config" {}
-
-
-data "config_workbook" "csv" {
-  csv = file("files/test.csv")
-  schema = file("files/config.yaml")
-  filter {
-    name = "name"
-    values = ["item_name1"]
-  }
-}
-
-data "config_workbook" "vm" {
-  csv = file("files/deployVM.csv")
-  configuration_item = "virtual_machine"
-}
 
 data "config_workbook" "excel" {
   excel = "files/data.xlsx"
@@ -73,29 +58,23 @@ data "config_ini" "ini" {
   ini = file("files/event.ini")
 }
 
-# output "horiz" {
-#   value = jsondecode(data.config_workbook.excel.json)
-# }
+data "config_workbook" "csv" {
+  csv = file("files/test.csv")
+  schema = file("files/config.yaml")
+  filter {
+    name = "name"
+    values = ["item_name1"]
+  }
+}
 
-# output "vert" {
-#   value = jsondecode(data.config_workbook.vexcel.json)
-# }
+data "config_workbook" "vm" {
+  csv = file("files/deployVM.csv")
+  configuration_item = "virtual_machine"
+}
 
 output "lookup" {
   value = jsondecode(data.config_workbook.lookup.json)
 }
-
-# output "events" {
-#   value = jsondecode(data.config_workbook.vert.json)
-# }
-
-# output "csv" {
-#   value = jsondecode(data.config_workbook.csv.json)
-# }
-
-# output "vm" {
-#   value = jsondecode(data.config_workbook.vm.json)
-# }
 
 output "ini" {
   value = jsondecode(data.config_ini.ini.json)

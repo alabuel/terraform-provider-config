@@ -8,26 +8,6 @@ description: |-
 
 # config_workbook (Data Source)
 
-### Example - Using a CSV
-
-```terraform
-data "config_workbook "csv" {
-  csv = <<-EOT
-  configuration_item,name,b_create,cidr_block
-  vpc,my_vpc,1,"10.0.0.0/16"
-  EOT
-}
-
-# reading from a csv file
-data "config_workbook" "csv_file" {
-  csv = file("filename.csv")
-  filter {
-    name = "columnHeaderName"
-    values = ["value1","value2","value3"]
-  }
-}
-```
-
 ### Example - Using an Excel file
 
 ```terraform
@@ -59,20 +39,6 @@ data "config_workbook" "excel_vertical" {
 }
 ```
 
-### Example - Using a CSV with a config schema
-
-```terraform
-data "config_workbook" "csv_using_yaml" {
-  csv = file("filename.csv")
-  schema = file("schema.yaml")
-}
-
-data "config_workbook" "csv_using_json" {
-  csv = file("filename.csv")
-  schema = file("schema.json")
-}
-```
-
 ### Example - Using an Excel with a config schema
 ```terraform
 data "config_workbook" "excel_using_yaml" {
@@ -84,6 +50,40 @@ data "config_workbook" "excel_using_yaml" {
 data "config_workbook" "excel_using_json" {
   excel = "filename.xlsx"
   worksheet = "Sheet1"
+  schema = file("schema.json")
+}
+```
+
+### Example - Using a CSV
+
+```terraform
+data "config_workbook "csv" {
+  csv = <<-EOT
+  configuration_item,name,b_create,cidr_block
+  vpc,my_vpc,1,"10.0.0.0/16"
+  EOT
+}
+
+# reading from a csv file
+data "config_workbook" "csv_file" {
+  csv = file("filename.csv")
+  filter {
+    name = "columnHeaderName"
+    values = ["value1","value2","value3"]
+  }
+}
+```
+
+### Example - Using a CSV with a config schema
+
+```terraform
+data "config_workbook" "csv_using_yaml" {
+  csv = file("filename.csv")
+  schema = file("schema.yaml")
+}
+
+data "config_workbook" "csv_using_json" {
+  csv = file("filename.csv")
   schema = file("schema.json")
 }
 ```
