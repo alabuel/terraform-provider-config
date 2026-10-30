@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -104,11 +105,11 @@ func dataSourceLookupSchema() *schema.Schema {
 	}
 }
 
-func buildConfigDataSourceParams(set *schema.Set) []map[string]interface{} {
-	var params []map[string]interface{}
+func buildConfigDataSourceParams(set *schema.Set) []map[string]any {
+	var params []map[string]any
 	for _, v := range set.List() {
-		m := v.(map[string]interface{})
-		mvalue := make(map[string]interface{})
+		m := v.(map[string]any)
+		mvalue := make(map[string]any)
 		mvalue["Key"] = m["key"].(string)
 		mvalue["Value"] = m["value"].(string)
 		params = append(params, mvalue)
@@ -116,15 +117,15 @@ func buildConfigDataSourceParams(set *schema.Set) []map[string]interface{} {
 	return params
 }
 
-func buildConfigDataSourceFilters(set *schema.Set) []map[string]interface{} {
-	var filters []map[string]interface{}
+func buildConfigDataSourceFilters(set *schema.Set) []map[string]any {
+	var filters []map[string]any
 	for _, v := range set.List() {
-		m := v.(map[string]interface{})
+		m := v.(map[string]any)
 		var filterValues []string
-		for _, e := range m["values"].([]interface{}) {
+		for _, e := range m["values"].([]any) {
 			filterValues = append(filterValues, fmt.Sprintf("%v", e))
 		}
-		mvalue := make(map[string]interface{})
+		mvalue := make(map[string]any)
 		mvalue["Name"] = m["name"].(string)
 		mvalue["Values"] = filterValues
 		filters = append(filters, mvalue)
@@ -132,11 +133,11 @@ func buildConfigDataSourceFilters(set *schema.Set) []map[string]interface{} {
 	return filters
 }
 
-func buildConfigDataSourceLookup(set *schema.Set) ([]map[string]interface{}, error) {
-	var lookup []map[string]interface{}
+func buildConfigDataSourceLookup(set *schema.Set) ([]map[string]any, error) {
+	var lookup []map[string]any
 	for _, v := range set.List() {
-		m := v.(map[string]interface{})
-		mvalue := make(map[string]interface{})
+		m := v.(map[string]any)
+		mvalue := make(map[string]any)
 		mvalue["Column"] = m["column"].(string)
 
 		source := 0
@@ -200,7 +201,7 @@ func buildConfigDataSourceLookup(set *schema.Set) ([]map[string]interface{}, err
 	return lookup, nil
 }
 
-func checkLookupValue(lookup []map[string]interface{}, key string) bool {
+func checkLookupValue(lookup []map[string]any, key string) bool {
 	for _, lv := range lookup {
 		if lv["Column"].(string) == key {
 			return true
@@ -209,14 +210,14 @@ func checkLookupValue(lookup []map[string]interface{}, key string) bool {
 	return false
 }
 
-func getLookupValue(lookup []map[string]interface{}, default_excel string, default_password string, default_worksheet string, key string, value string) (string, error) {
+func getLookupValue(lookup []map[string]any, default_excel string, default_password string, default_worksheet string, key string, value string) (string, error) {
 	var lookupValue = ""
 	for _, lv := range lookup {
 		if lv["Column"].(string) == key {
 			// added json and yaml as source lookup
 			if lv["Json"] != nil {
 				jd, _ := stringToInterface(lv["Json"].(string))
-				jsondata := jd.(map[interface{}]interface{})
+				jsondata := jd.(map[any]any)
 				if jsondata[value] != nil {
 					lookupValue = jsondata[value].(string)
 				} else {
@@ -224,7 +225,7 @@ func getLookupValue(lookup []map[string]interface{}, default_excel string, defau
 				}
 			} else if lv["Yaml"] != nil {
 				yd, _ := stringToInterface(lv["Yaml"].(string))
-				yamldata := yd.(map[interface{}]interface{})
+				yamldata := yd.(map[any]any)
 				if yamldata[value] != nil {
 					lookupValue = yamldata[value].(string)
 				} else {
@@ -260,7 +261,7 @@ func getLookupValue(lookup []map[string]interface{}, default_excel string, defau
 				}
 				rows, err := f.GetRows(worksheet)
 				if err != nil {
-					return "", fmt.Errorf(fmt.Sprintf("%v", rows))
+					return "", fmt.Errorf("%v", rows)
 				}
 
 				columns := len(rows[0])
@@ -269,7 +270,7 @@ func getLookupValue(lookup []map[string]interface{}, default_excel string, defau
 				header := rows[0]
 				column_key := 0
 				column_value := -1
-				for i := 0; i < columns; i++ {
+				for i := range columns {
 					if header[i] == key {
 						column_key = i
 					}
@@ -295,13 +296,11 @@ func getLookupValue(lookup []map[string]interface{}, default_excel string, defau
 	return lookupValue, nil
 }
 
-func checkFiltersForItem(filters []map[string]interface{}, key string, value string) bool {
+func checkFiltersForItem(filters []map[string]any, key string, value string) bool {
 	for _, fv := range filters {
 		if fv["Name"] == key {
-			for _, d := range fv["Values"].([]string) {
-				if d == value {
-					return true
-				}
+			if slices.Contains(fv["Values"].([]string), value) {
+				return true
 			}
 		}
 	}
@@ -309,16 +308,11 @@ func checkFiltersForItem(filters []map[string]interface{}, key string, value str
 }
 
 func stringInList(s string, list []string) bool {
-	for _, b := range list {
-		if b == s {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(list, s)
 }
 
-func stringToInterface(s string) (interface{}, error) {
-	var v interface{}
+func stringToInterface(s string) (any, error) {
+	var v any
 
 	// Try if the string is yaml
 	err := yaml.Unmarshal([]byte(s), &v)
@@ -357,23 +351,23 @@ func stringToMap(s string) ([]map[string]string, error) {
 	return rows, nil
 }
 
-func iniParser(datastream interface{}) map[string]map[string]interface{} {
+func iniParser(datastream any) map[string]map[string]any {
 	sect, _ := regexp.Compile(`^\[(.+)\]$`)
 	data, _ := regexp.Compile("(.+)=(.+)")
 
 	scanner := bufio.NewScanner(strings.NewReader(datastream.(string)))
-	ini := make(map[string]map[string]interface{})
+	ini := make(map[string]map[string]any)
 	section := ""
 	for scanner.Scan() {
 		line := scanner.Text()
 		if sect.MatchString(line) {
 			section = sect.FindStringSubmatch(line)[1]
-			ini[section] = make(map[string]interface{})
+			ini[section] = make(map[string]any)
 		} else if data.MatchString(line) {
 			kv := data.FindStringSubmatch(line)
 			if section == "" {
 				section = "default"
-				ini[section] = make(map[string]interface{})
+				ini[section] = make(map[string]any)
 			}
 			ini[section][strings.TrimSpace(kv[1])] = strings.TrimSpace(kv[2])
 

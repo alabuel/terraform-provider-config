@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"reflect"
 	"strconv"
 	"strings"
@@ -21,15 +22,15 @@ type ConfigurationWorkbook struct {
 	excel_file         string
 	excel_pass         string
 	sheet_name         string
-	sheet_headers      []interface{}
+	sheet_headers      []any
 	start_column       string
 	end_column         string
 	configuration_item string
 	col_config_item    string
 	orientation        string
-	filters            []map[string]interface{}
-	lookup             []map[string]interface{}
-	mapping            interface{}
+	filters            []map[string]any
+	lookup             []map[string]any
+	mapping            any
 	csv                []map[string]string
 }
 
@@ -94,7 +95,7 @@ func dataSourceConfigurationWorkbook() *schema.Resource {
 	}
 }
 
-func dataSourceConfigurationItemRead(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
+func dataSourceConfigurationItemRead(ctx context.Context, d *schema.ResourceData, m any) diag.Diagnostics {
 	var diags diag.Diagnostics
 
 	params := new(ConfigurationWorkbook)
@@ -105,7 +106,7 @@ func dataSourceConfigurationItemRead(ctx context.Context, d *schema.ResourceData
 	params.excel_file = d.Get("excel").(string)
 	params.excel_pass = d.Get("password").(string)
 	params.sheet_name = d.Get("worksheet").(string)
-	params.sheet_headers = d.Get("headers").([]interface{})
+	params.sheet_headers = d.Get("headers").([]any)
 	params.orientation = d.Get("orientation").(string)
 	params.start_column = d.Get("col_start").(string)
 	params.end_column = d.Get("col_end").(string)
@@ -138,12 +139,12 @@ func dataSourceConfigurationItemRead(ctx context.Context, d *schema.ResourceData
 
 	// make sure csv or excel is used
 	if params.csv_string == "" && params.excel_file == "" {
-		return diag.FromErr(fmt.Errorf(fmt.Sprintf("%v", "Must use csv or excel on the resource")))
+		return diag.FromErr(fmt.Errorf("%v", "Must use csv or excel on the resource"))
 	}
 
 	// make sure csv and excel is not on the same resource
 	if params.csv_string != "" && params.excel_file != "" {
-		return diag.FromErr(fmt.Errorf(fmt.Sprintf("%v", "Cannot use csv and excel on the same resource")))
+		return diag.FromErr(fmt.Errorf("%v", "Cannot use csv and excel on the same resource"))
 	}
 
 	params.orientation = strings.ToLower(params.orientation)
@@ -154,15 +155,15 @@ func dataSourceConfigurationItemRead(ctx context.Context, d *schema.ResourceData
 	} else if stringInList(params.orientation, valid_horizontal_orientation) {
 		params.orientation = "horizontal"
 	} else {
-		return diag.FromErr(fmt.Errorf(fmt.Sprintf("%v", "Invalid type. Valid values are horizontal,vertical")))
+		return diag.FromErr(fmt.Errorf("%v", "Invalid type. Valid values are horizontal,vertical"))
 	}
 
 	if params.orientation == "vertical" && params.configuration_item == "" {
-		return diag.FromErr(fmt.Errorf(fmt.Sprintf("%v", "configuration_item is required if type is vertical")))
+		return diag.FromErr(fmt.Errorf("%v", "configuration_item is required if type is vertical"))
 	}
 
 	if params.orientation == "vertical" && params.csv_string != "" {
-		return diag.FromErr(fmt.Errorf(fmt.Sprintf("%v", "vertical orientation is only valid for excel")))
+		return diag.FromErr(fmt.Errorf("%v", "vertical orientation is only valid for excel"))
 	}
 
 	// ###### End Validations ######
@@ -174,7 +175,7 @@ func dataSourceConfigurationItemRead(ctx context.Context, d *schema.ResourceData
 			return diag.FromErr(err)
 		}
 		params.csv_string = csvstring
-		// return diag.FromErr(fmt.Errorf(fmt.Sprintf("%v", csvstring)))
+		// return diag.FromErr(fmt.Errorf("%v", csvstring))
 	}
 
 	if params.csv_string != "" {
@@ -189,7 +190,7 @@ func dataSourceConfigurationItemRead(ctx context.Context, d *schema.ResourceData
 		items := unique(getConfigurationItems(params.csv, params.col_config_item))
 
 		// convert the schema to map
-		var map_yaml interface{}
+		var map_yaml any
 		if params.config_schema != "" {
 			map_yaml, err = stringToInterface(params.config_schema)
 			if err != nil {
@@ -201,7 +202,7 @@ func dataSourceConfigurationItemRead(ctx context.Context, d *schema.ResourceData
 				return diag.FromErr(err)
 			}
 		}
-		mapping := map_yaml.(map[interface{}]interface{})
+		mapping := map_yaml.(map[any]any)
 		params.mapping = mapping["config_schema"]
 
 		// remap all csv headers based on mapping configuration
@@ -282,7 +283,7 @@ func excelToCSV(args *ConfigurationWorkbook) (string, error) {
 	if args.orientation == "horizontal" {
 		// check if configuration item is in the column names
 		config_item_exist := false
-		for i := 0; i < row_len; i++ {
+		for i := range row_len {
 			if (i >= min) && (i <= max) && (i < row_len) {
 				if (rows[0][i] == "configuration_item") || (rows[0][i] == args.col_config_item) {
 					config_item_exist = true
@@ -292,7 +293,7 @@ func excelToCSV(args *ConfigurationWorkbook) (string, error) {
 
 		for idx, row := range rows {
 			var sb strings.Builder
-			for i := 0; i < row_len; i++ {
+			for i := range row_len {
 				if (i >= min) && (i <= max) {
 					if !config_item_exist {
 						if idx == 0 && i == min {
@@ -379,7 +380,7 @@ func excelToCSV(args *ConfigurationWorkbook) (string, error) {
 	if len(csv) == 1 {
 		return "", err
 	}
-	// return strings.Join(csv, "\n"), fmt.Errorf(fmt.Sprintf("%v", csv))
+	// return strings.Join(csv, "\n"), fmt.Errorf("%v", csv)
 	return strings.Join(csv, "\n"), err
 }
 
@@ -404,14 +405,14 @@ func getConfigurationItems(csv []map[string]string, configuration_item string) [
 	return items
 }
 
-func getItemData(csv []map[string]interface{}, items []string, configuration_item string) string {
-	listitem := make(map[string][]map[string]interface{})
+func getItemData(csv []map[string]any, items []string, configuration_item string) string {
+	listitem := make(map[string][]map[string]any)
 	if len(items) > 0 {
 		for _, item := range items {
-			var itemdatalist []map[string]interface{}
+			var itemdatalist []map[string]any
 			for _, value := range csv {
 				if value[configuration_item] == item {
-					itemdata := make(map[string]interface{})
+					itemdata := make(map[string]any)
 					for k, v := range value {
 						if k != configuration_item {
 							itemdata[k] = v
@@ -423,12 +424,10 @@ func getItemData(csv []map[string]interface{}, items []string, configuration_ite
 			}
 		}
 	} else {
-		var itemdatalist []map[string]interface{}
+		var itemdatalist []map[string]any
 		for _, value := range csv {
-			itemdata := make(map[string]interface{})
-			for k, v := range value {
-				itemdata[k] = v
-			}
+			itemdata := make(map[string]any)
+			maps.Copy(itemdata, value)
 			itemdatalist = append(itemdatalist, itemdata)
 			listitem[configuration_item] = itemdatalist
 		}
@@ -449,8 +448,8 @@ func unique(items []string) []string {
 	return list
 }
 
-func reMapData(args *ConfigurationWorkbook) []map[string]interface{} {
-	new_csv := make([]map[string]interface{}, len(args.csv))
+func reMapData(args *ConfigurationWorkbook) []map[string]any {
+	new_csv := make([]map[string]any, len(args.csv))
 	for key, value := range args.csv {
 		item_key := ""
 		for k, v := range value {
@@ -458,7 +457,7 @@ func reMapData(args *ConfigurationWorkbook) []map[string]interface{} {
 				item_key = v
 			}
 		}
-		new_value := make(map[string]interface{})
+		new_value := make(map[string]any)
 		new_tag := make(map[string]string)
 		tags := make(map[string]string)
 		include_value := false
@@ -589,9 +588,7 @@ func reMapData(args *ConfigurationWorkbook) []map[string]interface{} {
 				include_value = true
 			}
 		}
-		for k, v := range new_tag {
-			tags[k] = v
-		}
+		maps.Copy(tags, new_tag)
 		if include_value {
 			new_value["tags"] = tags
 			new_csv[key] = new_value
@@ -600,17 +597,17 @@ func reMapData(args *ConfigurationWorkbook) []map[string]interface{} {
 	return new_csv
 }
 
-func getMapValue(config interface{}, config_item string, config_key string) (string, string) {
+func getMapValue(config any, config_item string, config_key string) (string, string) {
 	return_value := config_key
 	return_type := "string"
-	item := config.(map[interface{}]interface{})
+	item := config.(map[any]any)
 	for _, key := range reflect.ValueOf(item).MapKeys() {
 		if key.Interface().(string) == config_item {
-			item_map := item[key.Interface()].(map[interface{}]interface{})
+			item_map := item[key.Interface()].(map[any]any)
 			for _, ik := range reflect.ValueOf(item_map).MapKeys() {
 				if ik.Interface().(string) == config_key {
 					return_type = "string"
-					kv, ok := item_map[ik.Interface()].(map[interface{}]interface{})
+					kv, ok := item_map[ik.Interface()].(map[any]any)
 					if !ok {
 						return_value = item_map[ik.Interface()].(string)
 					} else {
@@ -630,9 +627,9 @@ func getMapValue(config interface{}, config_item string, config_key string) (str
 	return return_value, return_type
 }
 
-func createDefaultMapping(items []string, csv []map[string]string, configuration_item string) (map[interface{}]interface{}, error) {
-	mapping := make(map[interface{}]interface{})
-	item_map := make(map[interface{}]interface{})
+func createDefaultMapping(items []string, csv []map[string]string, configuration_item string) (map[any]any, error) {
+	mapping := make(map[any]any)
+	item_map := make(map[any]any)
 	var item_list []string
 
 	if len(items) > 0 {
@@ -642,7 +639,7 @@ func createDefaultMapping(items []string, csv []map[string]string, configuration
 	}
 
 	for _, s := range item_list {
-		item := make(map[interface{}]interface{})
+		item := make(map[any]any)
 		for k := range csv[0] {
 			if len(items) > 0 {
 				if k != configuration_item {
