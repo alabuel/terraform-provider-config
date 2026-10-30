@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/csv"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"regexp"
@@ -260,7 +261,7 @@ func getLookupValue(lookup []map[string]interface{}, default_excel string, defau
 				}
 				rows, err := f.GetRows(worksheet)
 				if err != nil {
-					return "", fmt.Errorf(fmt.Sprintf("%v", rows))
+					return "", errors.New(fmt.Sprintf("%v", rows))
 				}
 
 				columns := len(rows[0])
@@ -269,7 +270,7 @@ func getLookupValue(lookup []map[string]interface{}, default_excel string, defau
 				header := rows[0]
 				column_key := 0
 				column_value := -1
-				for i := 0; i < columns; i++ {
+				for i := range columns {
 					if header[i] == key {
 						column_key = i
 					}

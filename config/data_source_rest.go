@@ -97,7 +97,7 @@ func dataSourceRestApiGet() *schema.Resource {
 	}
 }
 
-func dataSourceRestApiRead(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
+func dataSourceRestApiRead(ctx context.Context, d *schema.ResourceData, m any) diag.Diagnostics {
 	var diags diag.Diagnostics
 
 	reqparm := new(RequestParameters)
@@ -153,8 +153,7 @@ func dataSourceRestApiRead(ctx context.Context, d *schema.ResourceData, m interf
 
 	}
 
-	data, err := createR
-	equest(reqparm)
+	data, err := createRequest(reqparm)
 	if err != nil {
 		return diag.FromErr(err)
 	}
